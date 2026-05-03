@@ -123,6 +123,7 @@ function applyConfig() {
 
   // ── ADMIN BAR ────────────────────────────────────────
   document.getElementById('admin-badge-nombre').textContent = C.admin.nombrePanel;
+  document.getElementById('login-modal-logo').innerHTML = `${C.marcaPrincipal} <span>${C.marcaItalica}</span>`;
 
   // ── ADMIN MODAL ──────────────────────────────────────
   document.getElementById('admin-modal-subtitle').textContent =
@@ -174,18 +175,43 @@ async function guardarEnFirebase(){
 //  LOGIN — credenciales vienen de config.js
 // ════════════════════════════════════════════════════════
 function pedirLoginAdmin(){
-  const email = prompt("Email admin:");
-  const password = prompt("Contraseña:");
+  document.getElementById('login-modal').classList.add('active');
+  setTimeout(() => document.getElementById('login-email').focus(), 150);
+  ['login-email','login-password'].forEach(id => {
+    document.getElementById(id).onkeydown = e => { if(e.key === 'Enter') submitLogin(); };
+  });
+}
 
-  auth.signInWithEmailAndPassword(email, password)
-    .then(() => {
-      ADMIN_MODE = true;
-      document.body.classList.add('admin');
-      document.getElementById('admin-bar').style.display = 'flex';
-    })
-    .catch(() => {
-      alert("Credenciales incorrectas");
-    });
+function cancelarLogin(){
+  document.getElementById('login-modal').classList.remove('active');
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+async function submitLogin(){
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  const errorEl  = document.getElementById('login-error');
+
+  if(!email || !password){ errorEl.textContent = 'Completá email y contraseña.'; return; }
+
+  btn.textContent = 'Ingresando…';
+  btn.disabled    = true;
+  errorEl.textContent = '';
+
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    document.getElementById('login-modal').classList.remove('active');
+    ADMIN_MODE = true;
+    document.body.classList.add('admin');
+    document.getElementById('admin-bar').style.display = 'flex';
+  } catch {
+    errorEl.textContent = 'Credenciales incorrectas. Intentá de nuevo.';
+    btn.textContent = 'Ingresar';
+    btn.disabled    = false;
+  }
 }
 
 function logoutAdmin(){

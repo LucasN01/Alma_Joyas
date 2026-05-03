@@ -59,8 +59,6 @@ const SITE_CONFIG = {
 
   // ── ADMIN ──────────────────────────────────────────────────────
   admin: {
-    usuario:     "usuario",
-    password:    "contraseña",
     nombrePanel: "Alma Joyas"   // Aparece en la barra de administrador
   },
 
