@@ -33,7 +33,7 @@ const params = new URLSearchParams(location.search);
 const ADMIN_REQUEST = params.has('admin');
 let ADMIN_MODE = false;
 
-if(ADMIN_REQUEST){ pedirLoginAdmin(); }
+
 
 // ════════════════════════════════════════════════════════
 //  APLICAR CONFIG — llena todos los textos y colores
@@ -239,8 +239,9 @@ async function inicializar(){
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  applyConfig();   // ← primero aplica textos y colores del config
-  inicializar();   // ← luego carga Firebase y construye carruseles
+  applyConfig();
+  inicializar();
+  if(ADMIN_REQUEST){ pedirLoginAdmin(); }
 });
 window.addEventListener('resize', () => buildAllCarousels());
 
