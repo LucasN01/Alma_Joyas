@@ -11,7 +11,7 @@ const SITE_CONFIG = {
   marcaItalica:   "Joyas",   // Parte en cursiva y con color del acento
 
   // ── DESCRIPCIÓN CORTA ──────────────────────────────────────────
-  rubro:     "indumentaria y bijouterie",  // Ej: "Joyería artesanal", "Indumentaria"
+  rubro:     "indumentaria y joyería",  // Ej: "Joyería artesanal", "Indumentaria"
   ubicacion: "Córdoba",          // Ej: "Buenos Aires", "Palermo"
 
   // ── HERO ───────────────────────────────────────────────────────
@@ -39,13 +39,13 @@ const SITE_CONFIG = {
   },
 
   // ── CONTACTO ───────────────────────────────────────────────────
-  whatsapp:  "541134521808",       // Sin +, sin espacios. Ej: "5491123456789"
-  instagram: "dulce.princesa.ok",  // Sin @
+  whatsapp:  "543511234567",       // Sin +, sin espacios. Ej: "5491123456789"
+  instagram: "alma_joyas1",  // Sin @
 
   contacto: {
   label:      "Hablemos",
   titulo:     "¿Buscás algo especial?",
-  waDisplay:  "+54 11 3452-1808",           
+  waDisplay:  "+54 351 1234567",           
   waTexto:    "Hola! Vi su página y me gustaría consultar por sus productos.",
   ctaTitulo:  "Encontrá tu estilo ideal",
   ctaParrafo: "Te ayudamos a elegir la prenda o accesorio perfecto según tu estilo, ocasión o necesidad. Consultanos por disponibilidad, talles, combinaciones o recomendaciones.",
