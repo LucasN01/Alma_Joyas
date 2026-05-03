@@ -4,6 +4,17 @@
 firebase.initializeApp(SITE_CONFIG.firebase);
 const db = firebase.firestore();
 const DOC_REF = db.collection('catalogo').doc('productos');
+const auth = firebase.auth();
+
+
+//MANTENER SESIÓN
+auth.onAuthStateChanged(user => {
+  if(user){
+    ADMIN_MODE = true;
+    document.body.classList.add('admin');
+    document.getElementById('admin-bar').style.display = 'flex';
+  }
+});
 
 // ════════════════════════════════════════════════════════
 //  PRODUCTOS ORIGINALES — vienen de config.js
@@ -155,8 +166,7 @@ async function cargarDesdeFirebase(){
 async function guardarEnFirebase(){
   await DOC_REF.set({
     lista: productos,
-    categoriasOcultas,
-    adminKey: SITE_CONFIG.admin.password
+    categoriasOcultas
   });
 }
 
@@ -164,17 +174,25 @@ async function guardarEnFirebase(){
 //  LOGIN — credenciales vienen de config.js
 // ════════════════════════════════════════════════════════
 function pedirLoginAdmin(){
-  const user = prompt("Usuario:");
-  const pass = prompt("Contraseña:");
-  if(user === SITE_CONFIG.admin.usuario && pass === SITE_CONFIG.admin.password){
-    ADMIN_MODE = true;
-    document.body.classList.add('admin');
-  } else {
-    alert("Credenciales incorrectas");
-  }
+  const email = prompt("Email admin:");
+  const password = prompt("Contraseña:");
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => {
+      ADMIN_MODE = true;
+      document.body.classList.add('admin');
+      document.getElementById('admin-bar').style.display = 'flex';
+    })
+    .catch(() => {
+      alert("Credenciales incorrectas");
+    });
 }
 
-function logoutAdmin(){ location.reload(); }
+function logoutAdmin(){
+  auth.signOut().then(() => {
+    location.reload();
+  });
+}
 
 // ════════════════════════════════════════════════════════
 //  INICIALIZAR
