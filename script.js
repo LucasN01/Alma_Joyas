@@ -478,9 +478,10 @@ function openModal(p){
     window._modalCarouselTotal = imgs.length;
   }
   
-  // WhatsApp link desde config.js
-  const msg = encodeURIComponent(SITE_CONFIG.contacto.waTexto);
-  document.getElementById('modal-wa').href = `https://wa.me/${SITE_CONFIG.whatsapp}?text=${msg}`;
+  // WhatsApp link con nombre del producto
+  const template = SITE_CONFIG.contacto.waTextoProducto || SITE_CONFIG.contacto.waTexto;
+  const msgProducto = template.replace('{nombre}', p.nombre);
+  document.getElementById('modal-wa').href = `https://wa.me/${SITE_CONFIG.whatsapp}?text=${encodeURIComponent(msgProducto)}`;
   document.getElementById('modal').classList.add('active');
   document.body.style.overflow = 'hidden';
 }

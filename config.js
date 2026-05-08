@@ -39,7 +39,7 @@ const SITE_CONFIG = {
   },
 
   // ── CONTACTO ───────────────────────────────────────────────────
-  whatsapp:  "543511234567",       // Sin +, sin espacios. Ej: "5491123456789"
+  whatsapp:  "543516071260",       // Sin +, sin espacios. Ej: "5491123456789"
   instagram: "alma_joyas1",  // Sin @
 
   contacto: {
@@ -47,6 +47,7 @@ const SITE_CONFIG = {
   titulo:     "¿Buscás algo especial?",
   waDisplay:  "+54 351 1234567",           
   waTexto:    "Hola! Vi su página y me gustaría consultar por sus productos.",
+  waTextoProducto: "Hola! Vi su página y me gustaría consultar por: *{nombre}*",
   ctaTitulo:  "Encontrá tu estilo ideal",
   ctaParrafo: "Te ayudamos a elegir la prenda o accesorio perfecto según tu estilo, ocasión o necesidad. Consultanos por disponibilidad, talles, combinaciones o recomendaciones.",
   ctaBoton:   "Escribinos por WhatsApp"
