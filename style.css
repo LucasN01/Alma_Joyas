@@ -479,3 +479,8 @@
 .login-btn:disabled{opacity:0.6;cursor:not-allowed}
 .login-cancel{background:none;border:none;color:var(--text-soft);font-family:'Jost';font-size:12px;letter-spacing:1px;cursor:pointer;text-align:center;padding:4px;text-decoration:underline;text-underline-offset:3px}
 .login-cancel:hover{color:var(--text)}
+/* ── CHECKBOXES MULTI-CATEGORÍA ──────────────────────── */
+.cat-checkbox-label{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--detalles);border-radius:20px;cursor:pointer;font-size:13px;color:var(--text-soft);transition:all .2s;user-select:none;background:var(--secciones)}
+.cat-checkbox-label:hover{border-color:var(--principal);color:var(--text)}
+.cat-checkbox-label input[type=checkbox]{accent-color:var(--principal);width:14px;height:14px;cursor:pointer}
+.cat-checkbox-label:has(input:checked){border-color:var(--principal);background:color-mix(in srgb,var(--principal) 12%,transparent);color:var(--text);font-weight:500}

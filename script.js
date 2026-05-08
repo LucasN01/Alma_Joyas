@@ -273,7 +273,13 @@ function getCatId(cat){
 }
 
 function getCategorias(){
-  return [...new Set(productos.map(p => p.tipo))];
+  // Soporta tanto tipo (string legacy) como tipos (array nuevo)
+  const cats = [];
+  productos.forEach(p => {
+    const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
+    lista.forEach(c => { if(c && !cats.includes(c)) cats.push(c); });
+  });
+  return cats;
 }
 
 function visiblePorPantalla(){
@@ -295,7 +301,10 @@ function buildAllCarousels(){
   const toInit = [];
 
   visibles.forEach((cat, idx) => {
-    const prods = productos.filter(p => p.tipo === cat);
+    const prods = productos.filter(p => {
+      const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
+      return lista.includes(cat);
+    });
     if(!prods.length) return;
     const catId = getCatId(cat);
     const section = crearSeccionCarrusel(cat, catId, idx > 0);
@@ -389,7 +398,7 @@ function crearCard(p, esClonado){
       <img src="${p.img}" alt="${p.nombre}">
     </div>
     <div class="prod-info">
-      <div class="prod-tipo">${p.tipo}</div>
+      <div class="prod-tipo">${Array.isArray(p.tipos) ? p.tipos[0] : p.tipo}</div>
       <div class="prod-name">${p.nombre}</div>
     </div>
     <div class="prod-overlay">
@@ -451,7 +460,7 @@ function moverCarrusel(catId, dir){
 //  MODAL PRODUCTO
 // ════════════════════════════════════════════════════════
 function openModal(p){
-  document.getElementById('modal-tipo').textContent  = p.tipo;
+  document.getElementById('modal-tipo').textContent  = Array.isArray(p.tipos) ? p.tipos.join(' · ') : p.tipo;
   document.getElementById('modal-title').textContent = p.nombre;
   document.getElementById('modal-desc').textContent  = p.desc;
   
@@ -556,8 +565,7 @@ function cerrarAdminModal(e){
   portadaIdx = 0;
   document.getElementById('a-nombre').value = '';
   document.getElementById('a-desc').value   = '';
-  document.getElementById('a-tipo-nueva').value = '';
-  document.getElementById('a-tipo-nueva-wrap').style.display = 'none';
+  poblarSelectTipo([]);
   renderFotosGrid();
   document.querySelector('.admin-modal h2').textContent = 'Nuevo producto';
 }
@@ -627,55 +635,61 @@ function comprimirImagen(file, callback){
 
 // Mostrar/ocultar input de nueva categoría
 function toggleNuevaCat(){
-  const sel = document.getElementById('a-tipo');
   const wrap = document.getElementById('a-tipo-nueva-wrap');
   const input = document.getElementById('a-tipo-nueva');
-  if(sel.value === '__nueva__'){
-    wrap.style.display = 'block';
-    input.focus();
-  } else {
+  const visible = wrap.style.display === 'block';
+  if(visible){
     wrap.style.display = 'none';
     input.value = '';
+  } else {
+    wrap.style.display = 'block';
+    input.focus();
   }
 }
 
-// Poblar el select con las categorías — usa config.js → categoriasFijas
-function poblarSelectTipo(valorActual){
-  const sel = document.getElementById('a-tipo');
-  const opcionesFijas = SITE_CONFIG.categoriasFijas;   // ← viene de config.js
+// Poblar checkboxes de categorías (selección múltiple)
+function poblarSelectTipo(seleccionados = []){
+  const selArr = Array.isArray(seleccionados) ? seleccionados : [seleccionados];
+  const opcionesFijas = SITE_CONFIG.categoriasFijas;
   const existentes = getCategorias();
   const extras = existentes.filter(c => !opcionesFijas.includes(c));
-  const fijasFiltradas = opcionesFijas.filter(c => existentes.includes(c) || !productos.length);
+  const todas = [...new Set([...opcionesFijas, ...extras])];
 
-  sel.innerHTML = `<option value="">— Seleccioná una categoría —</option>`;
-  [...fijasFiltradas, ...extras].forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = c;
-    sel.appendChild(opt);
+  const container = document.getElementById('a-tipos-checks');
+  container.innerHTML = '';
+
+  todas.forEach(c => {
+    const label = document.createElement('label');
+    label.className = 'cat-checkbox-label';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = c;
+    cb.checked = selArr.includes(c);
+    label.appendChild(cb);
+    label.append(' ' + c);
+    container.appendChild(label);
   });
-  const optNueva = document.createElement('option');
-  optNueva.value = '__nueva__';
-  optNueva.textContent = '＋ Agregar nueva categoría…';
-  sel.appendChild(optNueva);
 
-  if(valorActual) sel.value = valorActual;
+  // Mostrar/ocultar "nueva categoría"
   document.getElementById('a-tipo-nueva-wrap').style.display = 'none';
   document.getElementById('a-tipo-nueva').value = '';
 }
 
 async function guardarProducto(){
   const nombre = document.getElementById('a-nombre').value.trim();
-  let   tipo   = document.getElementById('a-tipo').value;
   const desc   = document.getElementById('a-desc').value.trim();
 
-  if(tipo === '__nueva__'){
-    tipo = document.getElementById('a-tipo-nueva').value.trim();
-    if(!tipo){ alert('Por favor escribí el nombre de la nueva categoría.'); return; }
-  }
+  // Categorías seleccionadas (checkboxes múltiples)
+  const tiposSeleccionados = Array.from(
+    document.querySelectorAll('#a-tipos-checks input[type=checkbox]:checked')
+  ).map(cb => cb.value);
+
+  // Nueva categoría escrita a mano
+  const nuevaCatInput = document.getElementById('a-tipo-nueva').value.trim();
+  if(nuevaCatInput) tiposSeleccionados.push(nuevaCatInput);
 
   if(!nombre)    { alert('Por favor ingresá el nombre del producto.'); return; }
-  if(!tipo)      { alert('Por favor seleccioná una categoría.'); return; }
+  if(!tiposSeleccionados.length){ alert('Por favor seleccioná al menos una categoría.'); return; }
   if(!desc)      { alert('Por favor escribí una descripción.'); return; }
   if(!fotosBase64.length){ alert('Por favor subí al menos una foto del producto.'); return; }
 
@@ -684,12 +698,13 @@ async function guardarProducto(){
 
   if(productoEditando){
     productoEditando.nombre = nombre;
-    productoEditando.tipo   = tipo;
+    productoEditando.tipos  = tiposSeleccionados;
+    productoEditando.tipo   = tiposSeleccionados[0]; // compatibilidad legacy
     productoEditando.desc   = desc;
     productoEditando.img    = imgPortada;
     productoEditando.imgs   = reordenadas;
   } else {
-    productos.push({ nombre, tipo, desc, img: imgPortada, imgs: reordenadas });
+    productos.push({ nombre, tipo: tiposSeleccionados[0], tipos: tiposSeleccionados, desc, img: imgPortada, imgs: reordenadas });
   }
 
   buildAllCarousels();
@@ -708,7 +723,8 @@ async function guardarProducto(){
 function abrirModalEditar(p){
   productoEditando = p;
   document.getElementById('a-nombre').value = p.nombre;
-  poblarSelectTipo(p.tipo);
+  const tiposActuales = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
+  poblarSelectTipo(tiposActuales);
   document.getElementById('a-desc').value   = p.desc;
   fotosBase64 = p.imgs && p.imgs.length > 0 ? [...p.imgs] : [p.img];
   portadaIdx = 0;
@@ -768,7 +784,10 @@ function cambiarCatReorden(){
 function cargarOrdenTemporal(){
   ordenTemporal = reorderCatActual === '__todos__'
     ? [...productos]
-    : productos.filter(p => p.tipo === reorderCatActual);
+    : productos.filter(p => {
+        const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
+        return lista.includes(reorderCatActual);
+      });
 }
 
 function cerrarModalReorden(e){
@@ -791,7 +810,7 @@ function renderizarListaReorden(){
       <img class="reorder-thumb" src="${p.img}" alt="${p.nombre}">
       <div class="reorder-info">
         <div class="reorder-name">${p.nombre}</div>
-        <div class="reorder-tipo">${p.tipo}</div>
+        <div class="reorder-tipo">${Array.isArray(p.tipos) ? p.tipos.join(', ') : p.tipo}</div>
       </div>`;
 
     li.addEventListener('dragstart', e => {
@@ -855,7 +874,10 @@ function renderCatToggles(){
   const list = document.getElementById('cat-toggle-list');
   list.innerHTML = '';
   getCategorias().forEach(cat => {
-    const count = productos.filter(p => p.tipo === cat).length;
+    const count = productos.filter(p => {
+      const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
+      return lista.includes(cat);
+    }).length;
     const visible = !categoriasOcultas.includes(cat);
     const item = document.createElement('div');
     item.className = 'cat-toggle-item';
@@ -894,7 +916,16 @@ async function eliminarCategoria(cat){
     ? `¿Eliminar la categoría "${cat}" y sus ${count} producto${count !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`
     : `¿Eliminar la categoría "${cat}"?`;
   if(!confirm(msg)) return;
-  productos = productos.filter(p => p.tipo !== cat);
+  productos = productos.filter(p => {
+    const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
+    return !lista.includes(cat) || lista.length > 1;
+  }).map(p => {
+    if(Array.isArray(p.tipos) && p.tipos.includes(cat)){
+      const nuevos = p.tipos.filter(c => c !== cat);
+      return { ...p, tipos: nuevos, tipo: nuevos[0] };
+    }
+    return p;
+  });
   categoriasOcultas = categoriasOcultas.filter(c => c !== cat);
   renderCatToggles();
   buildAllCarousels();

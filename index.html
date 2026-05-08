@@ -218,11 +218,9 @@
       <input type="text" id="a-nombre" placeholder="">
     </div>
     <div class="admin-field">
-      <label>Categoría *</label>
-      <select id="a-tipo" onchange="toggleNuevaCat()">
-        <option value="">— Seleccioná una categoría —</option>
-        <option value="__nueva__">＋ Agregar nueva categoría…</option>
-      </select>
+      <label>Categorías * <span style="font-size:10px;color:var(--text-soft);text-transform:none;letter-spacing:0">(podés elegir más de una)</span></label>
+      <div id="a-tipos-checks" style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 0;min-height:36px"></div>
+      <button type="button" onclick="toggleNuevaCat()" style="margin-top:4px;background:none;border:1px dashed var(--detalles);border-radius:2px;padding:6px 12px;cursor:pointer;font-family:'Jost';font-size:13px;color:var(--text-soft)">＋ Nueva categoría</button>
       <div id="a-tipo-nueva-wrap" style="display:none;margin-top:8px">
         <input type="text" id="a-tipo-nueva" placeholder="Nombre de la nueva categoría" style="width:100%;padding:10px 14px;border:1px solid var(--detalles);border-radius:2px;font-family:'Jost';font-size:14px;color:var(--text);background:var(--secciones);outline:none">
       </div>
