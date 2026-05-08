@@ -846,10 +846,6 @@ function abrirModalReorden(){
     opt.textContent = cat;
     select.appendChild(opt);
   });
-  const optTodos = document.createElement('option');
-  optTodos.value = '__todos__';
-  optTodos.textContent = 'Todos los productos';
-  select.appendChild(optTodos);
 
   reorderCatActual = select.value;
   cargarOrdenTemporal();
