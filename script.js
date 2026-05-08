@@ -160,7 +160,14 @@ async function cargarDesdeFirebase(){
   if(snap.exists){
     const data = snap.data();
     if(data.lista){
-      categoriasOcultas = Array.isArray(data.categoriasOcultas) ? data.categoriasOcultas : [];
+      categoriasOcultas = Array.isArray(data.categoriasOcultas)
+        ? data.categoriasOcultas
+        : [];
+
+      categoriaOrden = Array.isArray(data.categoriaOrden)
+        ? data.categoriaOrden
+        : [];
+
       return data.lista;
     }
   }
@@ -172,7 +179,8 @@ async function guardarEnFirebase(){
   try {
     await DOC_REF.set({
       lista: productos,
-      categoriasOcultas
+      categoriasOcultas,
+      categoriaOrden
     });
   } catch(err) {
     console.error('Error guardando en Firebase:', err);
