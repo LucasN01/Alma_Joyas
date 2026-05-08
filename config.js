@@ -11,7 +11,7 @@ const SITE_CONFIG = {
   marcaItalica:   "Joyas",   // Parte en cursiva y con color del acento
 
   // ── DESCRIPCIÓN CORTA ──────────────────────────────────────────
-  rubro:     "indumentaria y joyería",  // Ej: "Joyería artesanal", "Indumentaria"
+  rubro:     "Indumentaria y joyería", 
   ubicacion: "Córdoba",          // Ej: "Buenos Aires", "Palermo"
 
   // ── HERO ───────────────────────────────────────────────────────
@@ -73,13 +73,12 @@ const SITE_CONFIG = {
   // ── FIREBASE ───────────────────────────────────────────────────
   // Creá un proyecto nuevo en https://console.firebase.google.com para cada cliente
   firebase: {
-    apiKey: "AIzaSyBQW2mqcT4t-ElsNVRoKtyebGF4tHYX7u0",
-    authDomain: "alma-joyas-efb64.firebaseapp.com",
-    databaseURL: "https://alma-joyas-efb64-default-rtdb.firebaseio.com",
-    projectId: "alma-joyas-efb64",
-    storageBucket: "alma-joyas-efb64.firebasestorage.app",
-    messagingSenderId: "159154338607",
-    appId: "1:159154338607:web:ad57eb6a490c685101ffda"
+    apiKey: "AIzaSyBGR8YEsK7BI_PjXPueeUMGDSsjAnfjrkk",
+    authDomain: "almajoyas-2908e.firebaseapp.com",
+    projectId: "almajoyas-2908e",
+    storageBucket: "almajoyas-2908e.firebasestorage.app",
+    messagingSenderId: "562669483726",
+    appId: "1:562669483726:web:b6f0a8db38352a3177c29f"
   },
 
   // ── TIPOGRAFÍA (Google Fonts) ───────────────────────────────────

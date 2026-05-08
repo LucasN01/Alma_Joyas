@@ -9,10 +9,13 @@ const auth = firebase.auth();
 
 //MANTENER SESIÓN
 auth.onAuthStateChanged(user => {
-  if(user){
+  if(user && ADMIN_REQUEST){
     ADMIN_MODE = true;
     document.body.classList.add('admin');
     document.getElementById('admin-bar').style.display = 'flex';
+  } else if(user && !ADMIN_REQUEST){
+    // Sesión activa pero URL normal → cerrar sesión silenciosamente
+    auth.signOut();
   }
 });
 
@@ -152,7 +155,7 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get();
+  const snap = await DOC_REF.get({ source: 'server' });
   if(snap.exists){
     const data = snap.data();
     if(data.lista){
@@ -165,10 +168,15 @@ async function cargarDesdeFirebase(){
 }
 
 async function guardarEnFirebase(){
-  await DOC_REF.set({
-    lista: productos,
-    categoriasOcultas
-  });
+  try {
+    await DOC_REF.set({
+      lista: productos,
+      categoriasOcultas
+    });
+  } catch(err) {
+    console.error('Error guardando en Firebase:', err);
+    mostrarToast('⚠ Error al guardar. Revisá la conexión.');
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -207,6 +215,7 @@ async function submitLogin(){
     ADMIN_MODE = true;
     document.body.classList.add('admin');
     document.getElementById('admin-bar').style.display = 'flex';
+    buildAllCarousels(); // reconstruir cards con botones de admin
   } catch {
     errorEl.textContent = 'Credenciales incorrectas. Intentá de nuevo.';
     btn.textContent = 'Ingresar';
@@ -243,7 +252,14 @@ document.addEventListener('DOMContentLoaded', () => {
   inicializar();
   if(ADMIN_REQUEST){ pedirLoginAdmin(); }
 });
-window.addEventListener('resize', () => buildAllCarousels());
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => buildAllCarousels(), 150);
+});
+
+
 
 // ════════════════════════════════════════════════════════
 //  HELPERS
@@ -346,33 +362,23 @@ function buildTrack(catId, prods){
   if(!track || !prods.length) return;
 
   const visible = visiblePorPantalla();
+  const cardW   = getCardWidth();
 
   carruselProds[catId] = prods;
-  track.innerHTML = '';
+  posCarrusel[catId]   = 0;
+  track.innerHTML      = '';
+
+  prods.forEach(p => {
+    const card = crearCard(p, false);
+    card.style.flex = `0 0 ${cardW}px`;
+    track.appendChild(card);
+  });
 
   const btnPrev = document.getElementById('btn-prev-' + catId);
   const btnNext = document.getElementById('btn-next-' + catId);
-
-  // Si hay ≤ productos que los slots visibles, mostrar estático sin clonar
-  if(prods.length <= visible){
-    prods.forEach(p => track.appendChild(crearCard(p, false)));
-    posCarrusel[catId] = 0;
-    track.style.transition = 'none';
-    track.style.transform = 'translateX(0)';
-    if(btnPrev) btnPrev.style.display = 'none';
-    if(btnNext) btnNext.style.display = 'none';
-    return;
-  }
-
-  if(btnPrev) btnPrev.style.display = '';
-  if(btnNext) btnNext.style.display = '';
-
-  prods.slice(-visible).forEach(p => track.appendChild(crearCard(p, true)));
-  prods.forEach(p => track.appendChild(crearCard(p, false)));
-  prods.slice(0, visible).forEach(p => track.appendChild(crearCard(p, true)));
-
-  posCarrusel[catId] = visible;
-  actualizarCarrusel(catId, false);
+  const ocultar = prods.length <= visible;
+  if(btnPrev) btnPrev.style.display = ocultar ? 'none' : '';
+  if(btnNext) btnNext.style.display = ocultar ? 'none' : '';
 }
 
 function crearCard(p, esClonado){
@@ -412,28 +418,33 @@ function crearCard(p, esClonado){
   return card;
 }
 
-function actualizarCarrusel(catId, animar = true){
+function getCardWidth(){
+  const gap = 20;
+  const visible = visiblePorPantalla();
+  const padding = window.innerWidth <= 768 ? 48 : 128;
+  const containerW = Math.min(window.innerWidth - padding, 1100);
+  return (containerW - gap * (visible - 1)) / visible;
+}
+
+function actualizarCarrusel(catId){
   const track = document.getElementById('carrusel-track-' + catId);
-  if(!track || !track.children.length) return;
-  const cardW = track.children[0].getBoundingClientRect().width;
-  track.style.transition = animar ? 'transform .45s cubic-bezier(.4,0,.2,1)' : 'none';
-  track.style.transform  = `translateX(-${posCarrusel[catId] * (cardW + 20)}px)`;
+  if(!track) return;
+  const outer  = track.closest('.carrusel-track-outer');
+  const cardW  = getCardWidth();
+  Array.from(track.children).forEach(c => c.style.flex = `0 0 ${cardW}px`);
+  if(outer) outer.scrollLeft = (posCarrusel[catId] || 0) * (cardW + 20);
 }
 
 function moverCarrusel(catId, dir){
+  const prods   = carruselProds[catId] || [];
   const visible = visiblePorPantalla();
-  const prods = carruselProds[catId] || [];
-  const total  = prods.length;
-  if(total <= visible) return; // estático, sin scroll
-  posCarrusel[catId] = (posCarrusel[catId] || visible) + dir;
-  actualizarCarrusel(catId, true);
+  if(prods.length <= visible) return;
+
+  posCarrusel[catId] = Math.max(0, Math.min((posCarrusel[catId] || 0) + dir, prods.length - visible));
 
   const track = document.getElementById('carrusel-track-' + catId);
-  if(!track) return;
-  track.addEventListener('transitionend', () => {
-    if(posCarrusel[catId] >= total + visible){ posCarrusel[catId] = visible; actualizarCarrusel(catId, false); }
-    if(posCarrusel[catId] < visible){ posCarrusel[catId] = total + visible - 1; actualizarCarrusel(catId, false); }
-  }, {once:true});
+  const outer = track?.closest('.carrusel-track-outer');
+  if(outer) outer.scrollLeft = posCarrusel[catId] * (getCardWidth() + 20);
 }
 
 // ════════════════════════════════════════════════════════
