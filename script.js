@@ -258,7 +258,9 @@ async function inicializar(){
         p.id = 'prod_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8);
       }
     });
-    await guardarEnFirebase();
+    if(ADMIN_MODE){
+      await guardarEnFirebase();
+    }
   } catch(err){
     console.error('Error cargando Firebase:', err);
     productos = productosDefault.map(p => ({...p}));
