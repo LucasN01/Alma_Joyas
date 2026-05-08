@@ -31,6 +31,7 @@ let productos = [];
 let posCarrusel = {};       // { catId: posicion }
 let carruselProds = {};     // { catId: [productos del carrusel] }
 let categoriasOcultas = []; // nombres de categorías ocultas
+let categoriaOrden = [];    // orden personalizado de categorías (solo en memoria)
 
 const params = new URLSearchParams(location.search);
 const ADMIN_REQUEST = params.has('admin');
@@ -279,6 +280,12 @@ function getCategorias(){
     const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
     lista.forEach(c => { if(c && !cats.includes(c)) cats.push(c); });
   });
+  // Aplicar orden personalizado si existe
+  if(categoriaOrden.length > 0){
+    const ordenadas = categoriaOrden.filter(c => cats.includes(c));
+    const nuevas = cats.filter(c => !categoriaOrden.includes(c));
+    return [...ordenadas, ...nuevas];
+  }
   return cats;
 }
 
@@ -870,10 +877,13 @@ function cerrarModalCategorias(e){
   document.getElementById('cat-modal').classList.remove('active');
 }
 
+let catDragSrc = null;
+
 function renderCatToggles(){
   const list = document.getElementById('cat-toggle-list');
   list.innerHTML = '';
-  getCategorias().forEach(cat => {
+  const cats = getCategorias();
+  cats.forEach((cat, idx) => {
     const count = productos.filter(p => {
       const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
       return lista.includes(cat);
@@ -881,10 +891,16 @@ function renderCatToggles(){
     const visible = !categoriasOcultas.includes(cat);
     const item = document.createElement('div');
     item.className = 'cat-toggle-item';
+    item.draggable = true;
+    item.dataset.cat = cat;
+    item.dataset.index = idx;
     item.innerHTML = `
-      <div>
-        <div class="cat-toggle-name">${cat}</div>
-        <div class="cat-toggle-count">${count} producto${count !== 1 ? 's' : ''}</div>
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <span class="cat-drag-handle" title="Arrastrá para reordenar">⠿</span>
+        <div>
+          <div class="cat-toggle-name">${cat}</div>
+          <div class="cat-toggle-count">${count} producto${count !== 1 ? 's' : ''}</div>
+        </div>
       </div>
       <div class="cat-toggle-actions">
         <button class="btn-cat-delete" title="Eliminar categoría y sus productos" onclick="eliminarCategoria('${cat.replace(/'/g,"\\'")}')">×</button>
@@ -893,6 +909,33 @@ function renderCatToggles(){
           <span class="toggle-slider"></span>
         </label>
       </div>`;
+
+    item.addEventListener('dragstart', e => {
+      catDragSrc = idx;
+      item.classList.add('cat-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('cat-dragging');
+      list.querySelectorAll('.cat-toggle-item').forEach(el => el.classList.remove('cat-drag-over'));
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      list.querySelectorAll('.cat-toggle-item').forEach(el => el.classList.remove('cat-drag-over'));
+      item.classList.add('cat-drag-over');
+    });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      const destIdx = parseInt(item.dataset.index);
+      if(catDragSrc === null || catDragSrc === destIdx) return;
+      const currentCats = getCategorias();
+      const [moved] = currentCats.splice(catDragSrc, 1);
+      currentCats.splice(destIdx, 0, moved);
+      categoriaOrden = currentCats;
+      catDragSrc = null;
+      renderCatToggles();
+    });
+
     list.appendChild(item);
   });
 }
@@ -944,3 +987,87 @@ function mostrarToast(msg){
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+// ════════════════════════════════════════════════════════
+//  BUSCADOR
+// ════════════════════════════════════════════════════════
+let searchTimeout = null;
+
+function abrirBuscador(){
+  const overlay = document.getElementById('search-overlay');
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('search-empty').style.display = 'none';
+  setTimeout(() => document.getElementById('search-input').focus(), 80);
+}
+
+function cerrarBuscador(){
+  document.getElementById('search-overlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function onSearchInput(e){
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => ejecutarBusqueda(e.target.value), 180);
+}
+
+function ejecutarBusqueda(query){
+  const q = query.trim();
+  const resultsEl = document.getElementById('search-results');
+  const emptyEl   = document.getElementById('search-empty');
+  const countEl   = document.getElementById('search-count');
+
+  if(!q){ resultsEl.innerHTML = ''; emptyEl.style.display='none'; countEl.textContent=''; return; }
+
+  const palabras = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const encontrados = productos.filter(p => {
+    const titulo = p.nombre.toLowerCase();
+    return palabras.some(w => titulo.includes(w));
+  });
+
+  countEl.textContent = encontrados.length > 0
+    ? `${encontrados.length} resultado${encontrados.length !== 1 ? 's' : ''}`
+    : '';
+
+  if(!encontrados.length){
+    resultsEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    emptyEl.querySelector('.search-empty-term').textContent = `"${q}"`;
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  resultsEl.innerHTML = '';
+  encontrados.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'search-card';
+    const cats = Array.isArray(p.tipos) ? p.tipos.join(' · ') : (p.tipo || '');
+    card.innerHTML = `
+      <div class="search-card-img">
+        <img src="${p.img}" alt="${p.nombre}">
+      </div>
+      <div class="search-card-info">
+        <div class="search-card-cat">${cats}</div>
+        <div class="search-card-name">${resaltarPalabras(p.nombre, palabras)}</div>
+        <div class="search-card-desc">${p.desc ? p.desc.substring(0,80)+'…' : ''}</div>
+      </div>
+      <button class="search-card-btn">Ver</button>`;
+    card.addEventListener('click', () => { cerrarBuscador(); openModal(p); });
+    resultsEl.appendChild(card);
+  });
+}
+
+function resaltarPalabras(texto, palabras){
+  let result = texto;
+  palabras.forEach(w => {
+    const regex = new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    result = result.replace(regex, '<mark>$1</mark>');
+  });
+  return result;
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') cerrarBuscador();
+});
