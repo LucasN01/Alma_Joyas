@@ -66,7 +66,7 @@ function applyConfig() {
   document.getElementById('nav-ig-link').href =
     `https://instagram.com/${C.instagram}`;
   document.getElementById('nav-wa-link').href =
-    `https://wa.me/${C.whatsapp}`;
+    `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(C.contacto.waTexto)}`;
 
   // ── HERO ─────────────────────────────────────────────
   document.getElementById('hero-eyebrow-1').textContent = `· ${C.rubro} ·`;
@@ -96,7 +96,7 @@ function applyConfig() {
   document.getElementById('contacto-titulo').textContent = C.contacto.titulo;
 
   const waLink = document.getElementById('contacto-wa-link');
-  waLink.href = `https://wa.me/${C.whatsapp}`;
+  waLink.href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(C.contacto.waTexto)}`;
   waLink.textContent = C.contacto.waDisplay;
 
   const igLink = document.getElementById('contacto-ig-link');
@@ -104,7 +104,7 @@ function applyConfig() {
   igLink.textContent = `@${C.instagram}`;
 
   document.getElementById('contacto-social-ig').href = `https://instagram.com/${C.instagram}`;
-  document.getElementById('contacto-social-wa').href = `https://wa.me/${C.whatsapp}`;
+  document.getElementById('contacto-social-wa').href = `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(C.contacto.waTexto)}`;
 
   document.getElementById('contacto-cta-titulo').textContent = C.contacto.ctaTitulo;
   document.getElementById('contacto-cta-p').textContent = C.contacto.ctaParrafo;
@@ -121,7 +121,7 @@ function applyConfig() {
   document.getElementById('footer-ig-link').href =
     `https://instagram.com/${C.instagram}`;
   document.getElementById('footer-wa-link').href =
-    `https://wa.me/${C.whatsapp}`;
+    `https://wa.me/${C.whatsapp}?text=${encodeURIComponent(C.contacto.waTexto)}`;
   document.getElementById('footer-copy').textContent = C.footer.copyright;
 
   // ── ADMIN BAR ────────────────────────────────────────
