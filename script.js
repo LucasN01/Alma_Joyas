@@ -857,18 +857,32 @@ function renderizarListaReorden(){
 }
 
 async function guardarReorden(){
+
   if(reorderCatActual === '__todos__'){
-    productos = ordenTemporal;
+
+    productos = [...ordenTemporal];
+
   } else {
-    let idx = 0;
-    productos = productos.map(p =>
-      p.tipo === reorderCatActual ? ordenTemporal[idx++] : p
-    );
+
+    const listaCategoria = ordenTemporal;
+
+    const otros = productos.filter(p => {
+      const lista = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
+      return !lista.includes(reorderCatActual);
+    });
+
+    productos = [...otros, ...listaCategoria];
   }
+
   buildAllCarousels();
-  document.getElementById('reorder-modal').classList.remove('active');
+
+  document.getElementById('reorder-modal')
+    .classList.remove('active');
+
   mostrarToast('Guardando orden…');
+
   await guardarEnFirebase();
+
   mostrarToast('Orden guardado ✓');
 }
 
