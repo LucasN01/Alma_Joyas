@@ -760,7 +760,8 @@ function poblarSelectTipo(seleccionados = []){
 
 async function guardarProducto(){
   const nombre = document.getElementById('a-nombre').value.trim();
-  const precio = document.getElementById('a-precio').value.trim();
+  const precioInput = document.getElementById('a-precio').value.trim();
+  const precio = precioInput ? '$' + Number(precioInput.replace(/\D/g, '')).toLocaleString('es-AR') : '';
   const desc   = document.getElementById('a-desc').value.trim();
 
   // Categorías seleccionadas (checkboxes múltiples)
@@ -816,7 +817,7 @@ async function guardarProducto(){
 function abrirModalEditar(p){
   productoEditando = p;
   document.getElementById('a-nombre').value = p.nombre;
-  document.getElementById('a-precio').value = p.precio || '';
+  document.getElementById('a-precio').value = (p.precio || '').replace('$','');
   const tiposActuales = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
   poblarSelectTipo(tiposActuales);
   document.getElementById('a-desc').value   = p.desc;
@@ -1154,4 +1155,24 @@ function resaltarPalabras(texto, palabras){
 
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape') cerrarBuscador();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  const inputPrecio = document.getElementById('a-precio');
+
+  if(!inputPrecio) return;
+
+  inputPrecio.addEventListener('input', function(e){
+
+    let valor = e.target.value.replace(/\D/g, '');
+
+    if(!valor){
+      e.target.value = '';
+      return;
+    }
+
+    e.target.value = Number(valor).toLocaleString('es-AR');
+  });
+
 });
