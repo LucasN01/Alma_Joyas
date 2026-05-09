@@ -544,6 +544,7 @@ function moverCarrusel(catId, dir){
 function openModal(p){
   document.getElementById('modal-tipo').textContent  = Array.isArray(p.tipos) ? p.tipos.join(' · ') : p.tipo;
   document.getElementById('modal-title').textContent = p.nombre;
+  document.getElementById('modal-precio').textContent = p.precio ? p.precio : '';
   document.getElementById('modal-desc').textContent  = p.desc;
   
   const imgContainer = document.getElementById('modal-img');
@@ -759,6 +760,7 @@ function poblarSelectTipo(seleccionados = []){
 
 async function guardarProducto(){
   const nombre = document.getElementById('a-nombre').value.trim();
+  const precio = document.getElementById('a-precio').value.trim();
   const desc   = document.getElementById('a-desc').value.trim();
 
   // Categorías seleccionadas (checkboxes múltiples)
@@ -783,10 +785,19 @@ async function guardarProducto(){
     productoEditando.tipos  = tiposSeleccionados;
     productoEditando.tipo   = tiposSeleccionados[0]; // compatibilidad legacy
     productoEditando.desc   = desc;
+    productoEditando.precio = precio;
     productoEditando.img    = imgPortada;
     productoEditando.imgs   = reordenadas;
   } else {
-    productos.push({ nombre, tipo: tiposSeleccionados[0], tipos: tiposSeleccionados, desc, img: imgPortada, imgs: reordenadas });
+    productos.push({
+      nombre,
+      precio,
+      tipo: tiposSeleccionados[0],
+      tipos: tiposSeleccionados,
+      desc,
+      img: imgPortada,
+      imgs: reordenadas
+    });
   }
 
   buildAllCarousels();
@@ -805,6 +816,7 @@ async function guardarProducto(){
 function abrirModalEditar(p){
   productoEditando = p;
   document.getElementById('a-nombre').value = p.nombre;
+  document.getElementById('a-precio').value = p.precio || '';
   const tiposActuales = Array.isArray(p.tipos) ? p.tipos : [p.tipo];
   poblarSelectTipo(tiposActuales);
   document.getElementById('a-desc').value   = p.desc;
