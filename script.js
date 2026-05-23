@@ -1267,7 +1267,7 @@ function mostrarToast(msg){
 
 function mostrarToastError(msg, duracion = 2800){
   const t = document.getElementById('admin-toast');
-  t.textContent = msg;
+  t.innerHTML = msg;
   t.classList.add('show');
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.remove('show'), duracion);
