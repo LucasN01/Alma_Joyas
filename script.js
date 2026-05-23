@@ -187,11 +187,9 @@ async function guardarEnFirebase(){
       categoriaOrden,
       ordenCategorias
     });
-    return true; // Indicamos éxito
   } catch(err) {
     console.error('Error guardando en Firebase:', err);
-    mostrarToast('⚠ Error al guardar. Límite de tamaño o mala conexión.');
-    return false; // Indicamos fallo
+    mostrarToast('⚠ Error al guardar. Revisá la conexión.');
   }
 }
 
@@ -255,23 +253,20 @@ async function inicializar(){
   }
   try {
     productos = await cargarDesdeFirebase();
+    let habia_ids_faltantes = false;
     productos.forEach((p, i) => {
       if(!p.id){
         p.id = 'prod_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8);
+        habia_ids_faltantes = true;
       }
     });
-    //if(ADMIN_MODE){
-    //  await guardarEnFirebase();
-    //}
-  } catch(err){
-    console.warn('Primer intento fallido, reintentando...', err);
-    try {
-      await new Promise(r => setTimeout(r, 1200));
-      productos = await cargarDesdeFirebase();
-    } catch(err2){
-      console.error('Error cargando Firebase:', err2);
-      productos = productosDefault.map(p => ({...p}));
+    // Solo guardar si se asignaron IDs nuevos (evita sobrescribir con datos viejos)
+    if(habia_ids_faltantes){
+      await guardarEnFirebase();
     }
+  } catch(err){
+    console.error('Error cargando Firebase:', err);
+    productos = productosDefault.map(p => ({...p}));
   }
   document.getElementById('carrusel-loading').style.display = 'none';
   buildAllCarousels();
@@ -626,11 +621,8 @@ async function eliminarProducto(p){
   if(idx > -1) productos.splice(idx, 1);
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
-    mostrarToast('Producto eliminado ✓');
-  }
-  
+  const exitoElim = await guardarEnFirebase();
+  if(exitoElim) mostrarToast('Producto eliminado ✓');
 }
 
 // ════════════════════════════════════════════════════════
@@ -714,7 +706,7 @@ function comprimirImagen(file, callback){
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      const MAX = 600;
+      const MAX = 900;
       let w = img.width, h = img.height;
       if(w > MAX){ h = Math.round(h * MAX / w); w = MAX; }
       if(h > MAX){ w = Math.round(w * MAX / h); h = MAX; }
@@ -816,8 +808,8 @@ async function guardarProducto(){
   buildAllCarousels();
   document.getElementById('admin-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
+  const exitoProducto = await guardarEnFirebase();
+  if(exitoProducto){
     mostrarToast('Producto guardado ✓');
     setTimeout(() => scrollToSection('productos'), 300);
   }
@@ -852,10 +844,8 @@ async function resetearProductos(){
   categoriasOcultas = [];
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
-    mostrarToast('Catálogo restaurado ✓');
-  }
+  const exitoReset = await guardarEnFirebase();
+  if(exitoReset) mostrarToast('Catálogo restaurado ✓');
 }
 
 // ════════════════════════════════════════════════════════
@@ -960,10 +950,8 @@ async function guardarReorden(){
 
   mostrarToast('Guardando orden…');
 
-  const exito = await guardarEnFirebase();
-  if(exito) {
-    mostrarToast('Orden guardado ✓');
-  }
+  const exitoOrden = await guardarEnFirebase();
+  if(exitoOrden) mostrarToast('Orden guardado ✓');
 }
 
 // ════════════════════════════════════════════════════════
@@ -1051,10 +1039,8 @@ async function guardarCategorias(){
   buildAllCarousels();
   document.getElementById('cat-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
-    mostrarToast('Categorías actualizadas ✓');
-  }
+  const exitoCats = await guardarEnFirebase();
+  if(exitoCats) mostrarToast('Categorías actualizadas ✓');
 }
 
 async function eliminarCategoria(cat){
@@ -1077,10 +1063,8 @@ async function eliminarCategoria(cat){
   renderCatToggles();
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
-    mostrarToast('Categoría "${cat}" eliminada ✓');
-  }
+  const exitoElimCat = await guardarEnFirebase();
+  if(exitoElimCat) mostrarToast(`Categoría "${cat}" eliminada ✓`);
 }
 
 // ════════════════════════════════════════════════════════
@@ -1095,7 +1079,7 @@ let nosotrosImgPendiente = null;
 
 async function cargarConfigEditable(){
   try {
-    const snap = await CONFIG_REF.get({ source: 'default' });
+    const snap = await CONFIG_REF.get({ source: 'server' });
     if(snap.exists){
       const data = snap.data();
       // Mezclar sobre SITE_CONFIG
