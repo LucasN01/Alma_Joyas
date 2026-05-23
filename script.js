@@ -190,7 +190,7 @@ async function guardarEnFirebase(){
     return true; // Indicamos éxito
   } catch(err) {
     console.error('Error guardando en Firebase:', err);
-    mostrarToastError('⚠ Error al guardar. Mala conexión, límite excedido o cierre las demás pestañas dejando solo la sesión de administrador.', 9000);
+    mostrarToastError('⚠ Error al guardar. Mala conexión, límite excedido de imágenes o superposicion de pestañas.<br>Revise conexión a internet, cierre las demás pestañas y vuelva a iniciar sesión en modo administrador.', 20000);
     return false; // Indicamos fallo
   }
 }
