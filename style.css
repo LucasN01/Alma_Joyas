@@ -704,3 +704,31 @@
   border-bottom-color:var(--principal);
 }
 .ep-tab:hover:not(.active){ color:var(--text); }
+
+/* --- AJUSTES PARA CELULARES (Pantallas menores a 768px) --- */
+@media (max-width: 768px) {
+  
+  /* 1. Ajustar el logo y el menú de navegación */
+  nav { padding: 0 1rem; }
+  .nav-links { display: none; } /* Ocultar menú largo en móvil si es necesario */
+
+  /* 2. Corregir el diseño de "Nosotros" para que se vea apilado */
+  .about-grid {
+    grid-template-columns: 1fr; /* Cambia de 2 columnas a 1 columna */
+    gap: 2rem;
+  }
+  
+  /* 3. Ajustar el tamaño de fuente del título principal en el Hero */
+  .hero-title {
+    font-size: 42px; /* Más pequeño para que no se corte */
+  }
+
+  /* 4. Asegurar que las tarjetas de productos se vean bien (1 o 2 por fila) */
+  .producto-card {
+    flex: 0 0 calc(100% - 20px); /* Ocupa casi todo el ancho */
+  }
+
+  /* 5. Reducir el padding general de las secciones */
+  section { padding: 3rem 1rem; }
+}
+
