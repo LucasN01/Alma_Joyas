@@ -190,7 +190,7 @@ async function guardarEnFirebase(){
     return true; // Indicamos éxito
   } catch(err) {
     console.error('Error guardando en Firebase:', err);
-    mostrarToast('⚠ Error al guardar. Mala conexión, límite excedido o cierre las demás pestañas dejando solo la sesión de administrador.');
+    mostrarToastError('⚠ Error al guardar. Mala conexión, límite excedido o cierre las demás pestañas dejando solo la sesión de administrador.', 9000);
     return false; // Indicamos fallo
   }
 }
@@ -1263,6 +1263,14 @@ function mostrarToast(msg){
   t.classList.add('show');
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function mostrarToastError(msg, duracion = 2800){
+  const t = document.getElementById('admin-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), duracion);
 }
 
 // ════════════════════════════════════════════════════════
