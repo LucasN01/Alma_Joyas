@@ -157,7 +157,7 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get({ source: 'server' });
+  const snap = await DOC_REF.get({ source: 'default' });
   if(snap.exists){
     const data = snap.data();
     if(data.lista){
@@ -253,20 +253,23 @@ async function inicializar(){
   }
   try {
     productos = await cargarDesdeFirebase();
-    let habia_ids_faltantes = false;
     productos.forEach((p, i) => {
       if(!p.id){
         p.id = 'prod_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8);
-        habia_ids_faltantes = true;
       }
     });
-    // Solo guardar si se asignaron IDs nuevos (evita sobrescribir con datos viejos)
-    if(habia_ids_faltantes){
+    if(ADMIN_MODE){
       await guardarEnFirebase();
     }
   } catch(err){
-    console.error('Error cargando Firebase:', err);
-    productos = productosDefault.map(p => ({...p}));
+    console.warn('Primer intento fallido, reintentando...', err);
+    try {
+      await new Promise(r => setTimeout(r, 1200));
+      productos = await cargarDesdeFirebase();
+    } catch(err2){
+      console.error('Error cargando Firebase:', err2);
+      productos = productosDefault.map(p => ({...p}));
+    }
   }
   document.getElementById('carrusel-loading').style.display = 'none';
   buildAllCarousels();
@@ -621,8 +624,8 @@ async function eliminarProducto(p){
   if(idx > -1) productos.splice(idx, 1);
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exitoElim = await guardarEnFirebase();
-  if(exitoElim) mostrarToast('Producto eliminado ✓');
+  await guardarEnFirebase();
+  mostrarToast('Producto eliminado ✓');
 }
 
 // ════════════════════════════════════════════════════════
@@ -808,11 +811,9 @@ async function guardarProducto(){
   buildAllCarousels();
   document.getElementById('admin-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  const exitoProducto = await guardarEnFirebase();
-  if(exitoProducto){
-    mostrarToast('Producto guardado ✓');
-    setTimeout(() => scrollToSection('productos'), 300);
-  }
+  await guardarEnFirebase();
+  mostrarToast('Producto guardado ✓');
+  setTimeout(() => scrollToSection('productos'), 300);
   productoEditando = null;
   fotosBase64 = [];
   portadaIdx = 0;
@@ -844,8 +845,8 @@ async function resetearProductos(){
   categoriasOcultas = [];
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exitoReset = await guardarEnFirebase();
-  if(exitoReset) mostrarToast('Catálogo restaurado ✓');
+  await guardarEnFirebase();
+  mostrarToast('Catálogo restaurado ✓');
 }
 
 // ════════════════════════════════════════════════════════
@@ -950,8 +951,9 @@ async function guardarReorden(){
 
   mostrarToast('Guardando orden…');
 
-  const exitoOrden = await guardarEnFirebase();
-  if(exitoOrden) mostrarToast('Orden guardado ✓');
+  await guardarEnFirebase();
+
+  mostrarToast('Orden guardado ✓');
 }
 
 // ════════════════════════════════════════════════════════
@@ -1039,8 +1041,8 @@ async function guardarCategorias(){
   buildAllCarousels();
   document.getElementById('cat-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  const exitoCats = await guardarEnFirebase();
-  if(exitoCats) mostrarToast('Categorías actualizadas ✓');
+  await guardarEnFirebase();
+  mostrarToast('Categorías actualizadas ✓');
 }
 
 async function eliminarCategoria(cat){
@@ -1063,8 +1065,8 @@ async function eliminarCategoria(cat){
   renderCatToggles();
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exitoElimCat = await guardarEnFirebase();
-  if(exitoElimCat) mostrarToast(`Categoría "${cat}" eliminada ✓`);
+  await guardarEnFirebase();
+  mostrarToast(`Categoría "${cat}" eliminada ✓`);
 }
 
 // ════════════════════════════════════════════════════════
@@ -1079,7 +1081,7 @@ let nosotrosImgPendiente = null;
 
 async function cargarConfigEditable(){
   try {
-    const snap = await CONFIG_REF.get({ source: 'server' });
+    const snap = await CONFIG_REF.get({ source: 'default' });
     if(snap.exists){
       const data = snap.data();
       // Mezclar sobre SITE_CONFIG
