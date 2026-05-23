@@ -157,7 +157,7 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get({ source: 'server' });
+  const snap = await DOC_REF.get({ source: 'default' });
   if(snap.exists){
     const data = snap.data();
     if(data.lista){
@@ -262,8 +262,14 @@ async function inicializar(){
       await guardarEnFirebase();
     }
   } catch(err){
-    console.error('Error cargando Firebase:', err);
-    productos = productosDefault.map(p => ({...p}));
+    console.warn('Primer intento fallido, reintentando...', err);
+    try {
+      await new Promise(r => setTimeout(r, 1200));
+      productos = await cargarDesdeFirebase();
+    } catch(err2){
+      console.error('Error cargando Firebase:', err2);
+      productos = productosDefault.map(p => ({...p}));
+    }
   }
   document.getElementById('carrusel-loading').style.display = 'none';
   buildAllCarousels();
@@ -1075,7 +1081,7 @@ let nosotrosImgPendiente = null;
 
 async function cargarConfigEditable(){
   try {
-    const snap = await CONFIG_REF.get({ source: 'server' });
+    const snap = await CONFIG_REF.get({ source: 'default' });
     if(snap.exists){
       const data = snap.data();
       // Mezclar sobre SITE_CONFIG
