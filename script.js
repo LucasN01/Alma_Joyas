@@ -157,7 +157,7 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get({ source: 'default' });
+  const snap = await DOC_REF.get({ source: 'server' });
   if(snap.exists){
     const data = snap.data();
     if(data.lista){
