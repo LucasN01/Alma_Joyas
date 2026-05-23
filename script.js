@@ -157,7 +157,7 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get({ source: 'default' });
+  const snap = await DOC_REF.get({ source: 'server' });
   if(snap.exists){
     const data = snap.data();
     if(data.lista){
@@ -187,9 +187,11 @@ async function guardarEnFirebase(){
       categoriaOrden,
       ordenCategorias
     });
+    return true; // Indicamos éxito
   } catch(err) {
     console.error('Error guardando en Firebase:', err);
-    mostrarToast('⚠ Error al guardar. Revisá la conexión.');
+    mostrarToast('⚠ Error al guardar. Límite de tamaño o mala conexión.');
+    return false; // Indicamos fallo
   }
 }
 
@@ -258,9 +260,9 @@ async function inicializar(){
         p.id = 'prod_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8);
       }
     });
-    if(ADMIN_MODE){
-      await guardarEnFirebase();
-    }
+    //if(ADMIN_MODE){
+    //  await guardarEnFirebase();
+    //}
   } catch(err){
     console.warn('Primer intento fallido, reintentando...', err);
     try {
@@ -624,8 +626,11 @@ async function eliminarProducto(p){
   if(idx > -1) productos.splice(idx, 1);
   buildAllCarousels();
   mostrarToast('Guardando…');
-  await guardarEnFirebase();
-  mostrarToast('Producto eliminado ✓');
+  const exito = await guardarEnFirebase();
+  if(exito) {
+    mostrarToast('Producto eliminado ✓');
+  }
+  
 }
 
 // ════════════════════════════════════════════════════════
@@ -709,7 +714,7 @@ function comprimirImagen(file, callback){
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      const MAX = 900;
+      const MAX = 600;
       let w = img.width, h = img.height;
       if(w > MAX){ h = Math.round(h * MAX / w); w = MAX; }
       if(h > MAX){ w = Math.round(w * MAX / h); h = MAX; }
@@ -811,9 +816,11 @@ async function guardarProducto(){
   buildAllCarousels();
   document.getElementById('admin-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  await guardarEnFirebase();
-  mostrarToast('Producto guardado ✓');
-  setTimeout(() => scrollToSection('productos'), 300);
+  const exito = await guardarEnFirebase();
+  if(exito) {
+    mostrarToast('Producto guardado ✓');
+    setTimeout(() => scrollToSection('productos'), 300);
+  }
   productoEditando = null;
   fotosBase64 = [];
   portadaIdx = 0;
@@ -845,8 +852,10 @@ async function resetearProductos(){
   categoriasOcultas = [];
   buildAllCarousels();
   mostrarToast('Guardando…');
-  await guardarEnFirebase();
-  mostrarToast('Catálogo restaurado ✓');
+  const exito = await guardarEnFirebase();
+  if(exito) {
+    mostrarToast('Catálogo restaurado ✓');
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -951,9 +960,10 @@ async function guardarReorden(){
 
   mostrarToast('Guardando orden…');
 
-  await guardarEnFirebase();
-
-  mostrarToast('Orden guardado ✓');
+  const exito = await guardarEnFirebase();
+  if(exito) {
+    mostrarToast('Orden guardado ✓');
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1041,8 +1051,10 @@ async function guardarCategorias(){
   buildAllCarousels();
   document.getElementById('cat-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  await guardarEnFirebase();
-  mostrarToast('Categorías actualizadas ✓');
+  const exito = await guardarEnFirebase();
+  if(exito) {
+    mostrarToast('Categorías actualizadas ✓');
+  }
 }
 
 async function eliminarCategoria(cat){
@@ -1065,8 +1077,10 @@ async function eliminarCategoria(cat){
   renderCatToggles();
   buildAllCarousels();
   mostrarToast('Guardando…');
-  await guardarEnFirebase();
-  mostrarToast(`Categoría "${cat}" eliminada ✓`);
+  const exito = await guardarEnFirebase();
+  if(exito) {
+    mostrarToast('Categoría "${cat}" eliminada ✓');
+  }
 }
 
 // ════════════════════════════════════════════════════════
