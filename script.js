@@ -1353,6 +1353,27 @@ function resaltarPalabras(texto, palabras){
   return result;
 }
 
+
+
+
+function toggleLoginPassword() {
+  const input = document.getElementById('login-password');
+  const iconShow = document.getElementById('eye-icon-show');
+  const iconHide = document.getElementById('eye-icon-hide');
+  if (input.type === 'password') {
+    input.type = 'text';
+    iconShow.style.display = 'none';
+    iconHide.style.display = '';
+  } else {
+    input.type = 'password';
+    iconShow.style.display = '';
+    iconHide.style.display = 'none';
+  }
+}
+
+
+
+
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape') cerrarBuscador();
 });
@@ -1376,3 +1397,4 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 });
+
