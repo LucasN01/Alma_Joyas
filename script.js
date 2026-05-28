@@ -3,7 +3,8 @@
 // ════════════════════════════════════════════════════════
 firebase.initializeApp(SITE_CONFIG.firebase);
 const db = firebase.firestore();
-const DOC_REF = db.collection('catalogo').doc('productos');
+const PRODS_REF = db.collection('productos'); // Nueva colección para productos
+const META_REF = db.collection('config').doc('catalogo_meta'); // Para configuraciones globales
 const auth = firebase.auth();
 
 
@@ -180,36 +181,35 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get({ source: 'server' });
-  if(snap.exists){
-    const data = snap.data();
-    if(data.lista){
-
-      categoriasOcultas = Array.isArray(data.categoriasOcultas)
-        ? data.categoriasOcultas
-        : [];
-
-      categoriaOrden = Array.isArray(data.categoriaOrden)
-        ? data.categoriaOrden
-        : [];
-
-      ordenCategorias = data.ordenCategorias || {};
-
-      productosOcultos = Array.isArray(data.productosOcultos)
-        ? data.productosOcultos
-        : [];
-
-      return data.lista;
+  try {
+    // 1. Cargar metadatos de configuración global (categorías, órdenes, ocultos)
+    const metaSnap = await META_REF.get();
+    if(metaSnap.exists){
+      const data = metaSnap.data();
+      categoriasOcultas = Array.isArray(data.categoriasOcultas) ? data.categoriasOcultas : [];
+      categoriaOrden    = Array.isArray(data.categoriaOrden) ? data.categoriaOrden : [];
+      ordenCategorias   = data.ordenCategorias || {};
+      productosOcultos  = Array.isArray(data.productosOcultos) ? data.productosOcultos : [];
     }
+
+    // 2. Cargar todos los productos individuales desde la colección
+    const querySnap = await PRODS_REF.get();
+    const listaProds = [];
+    querySnap.forEach(doc => {
+      listaProds.push(doc.data());
+    });
+
+    return listaProds;
+  } catch(err) {
+    console.error("Error cargando desde Firebase:", err);
+    return [];
   }
-  await DOC_REF.set({ lista: [], categoriasOcultas: [] });
-  return [];
 }
 
 async function guardarEnFirebase(){
   try {
-    await DOC_REF.set({
-      lista: productos,
+    // Ahora esta función solo guarda las configuraciones de la interfaz en 'config/catalogo_meta'
+    await META_REF.set({
       categoriasOcultas,
       categoriaOrden,
       ordenCategorias,
@@ -217,7 +217,7 @@ async function guardarEnFirebase(){
     });
     return true; // Indicamos éxito
   } catch(err) {
-    console.error('Error guardando en Firebase:', err);
+    console.error('Error guardando metadatos en Firebase:', err);
     mostrarToastError('⚠ Error al guardar. Mala conexión, límite excedido de imágenes o superposicion de pestañas.<br>Revise conexión a internet, cierre las demás pestañas y vuelva a iniciar sesión en modo administrador.', 20000);
     return false; // Indicamos fallo
   }
@@ -672,15 +672,21 @@ function scrollToSection(id){
 // ════════════════════════════════════════════════════════
 async function eliminarProducto(p){
   if(!confirm(`¿Eliminar "${p.nombre}" del catálogo?`)) return;
-  const idx = productos.indexOf(p);
-  if(idx > -1) productos.splice(idx, 1);
-  buildAllCarousels();
-  mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
+  mostrarToast('Eliminando…');
+  try {
+    // Eliminar de la colección de documentos individuales en Firestore
+    await PRODS_REF.doc(p.id).delete();
+
+    // Eliminar del array local en memoria para actualizar la interfaz inmediatamente
+    const idx = productos.findIndex(prod => prod.id === p.id);
+    if(idx > -1) productos.splice(idx, 1);
+
+    buildAllCarousels();
     mostrarToast('Producto eliminado ✓');
+  } catch(err) {
+    console.error('Error al eliminar de Firestore:', err);
+    mostrarToastError('No se pudo eliminar el producto de la base de datos.');
   }
-  
 }
 
 // ════════════════════════════════════════════════════════
