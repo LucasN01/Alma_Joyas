@@ -6,7 +6,7 @@ const db = firebase.firestore();
 // Cada producto es un documento en la subcolección "productos"
 // La metadata (categorías, orden, etc.) va en un doc separado "__meta__"
 const PRODS_COL = db.collection('catalogo').doc('productos').collection('items');
-const META_REF  = db.collection('catalogo').doc('__meta__');
+const META_REF  = db.collection('catalogo').doc('_meta');
 const auth = firebase.auth();
 
 
