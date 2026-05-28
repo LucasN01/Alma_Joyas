@@ -3,7 +3,8 @@
 // ════════════════════════════════════════════════════════
 firebase.initializeApp(SITE_CONFIG.firebase);
 const db = firebase.firestore();
-const DOC_REF = db.collection('catalogo').doc('productos');
+const PRODS_REF = db.collection('productos'); // Nueva colección para productos
+const META_REF = db.collection('config').doc('catalogo_meta'); // Para configuraciones globales
 const auth = firebase.auth();
 
 
@@ -180,46 +181,46 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get({ source: 'server' });
-  if(snap.exists){
-    const data = snap.data();
-    if(data.lista){
-
-      categoriasOcultas = Array.isArray(data.categoriasOcultas)
-        ? data.categoriasOcultas
-        : [];
-
-      categoriaOrden = Array.isArray(data.categoriaOrden)
-        ? data.categoriaOrden
-        : [];
-
-      ordenCategorias = data.ordenCategorias || {};
-
-      productosOcultos = Array.isArray(data.productosOcultos)
-        ? data.productosOcultos
-        : [];
-
-      return data.lista;
+  try {
+    // 1. Cargar metadatos de configuración global (categorías, órdenes, ocultos)
+    const metaSnap = await META_REF.get();
+    if(metaSnap.exists){
+      const data = metaSnap.data();
+      categoriasOcultas = Array.isArray(data.categoriasOcultas) ? data.categoriasOcultas : [];
+      categoriaOrden    = Array.isArray(data.categoriaOrden) ? data.categoriaOrden : [];
+      ordenCategorias   = data.ordenCategorias || {};
+      productosOcultos  = Array.isArray(data.productosOcultos) ? data.productosOcultos : [];
     }
+
+    // 2. Cargar todos los productos individuales desde la colección
+    const querySnap = await PRODS_REF.get();
+    const listaProds = [];
+    querySnap.forEach(doc => {
+      listaProds.push(doc.data());
+    });
+
+    return listaProds;
+  } catch(err) {
+    console.error("Error cargando desde Firebase:", err);
+    return [];
   }
-  await DOC_REF.set({ lista: [], categoriasOcultas: [] });
-  return [];
 }
 
 async function guardarEnFirebase(){
   try {
-    await DOC_REF.set({
-      lista: productos,
+    // Guarda solo configuraciones visuales (texto liviano)
+    await META_REF.set({
       categoriasOcultas,
       categoriaOrden,
       ordenCategorias,
       productosOcultos
     });
-    return true; // Indicamos éxito
+    return true; 
   } catch(err) {
-    console.error('Error guardando en Firebase:', err);
+    console.error('Error guardando metadatos en Firebase:', err);
+    // Mensaje de error actualizado y real:
     mostrarToastError('⚠ Error al guardar. Mala conexión, límite excedido de imágenes o superposicion de pestañas.<br>Revise conexión a internet, cierre las demás pestañas y vuelva a iniciar sesión en modo administrador.', 20000);
-    return false; // Indicamos fallo
+    return false; 
   }
 }
 
@@ -672,15 +673,21 @@ function scrollToSection(id){
 // ════════════════════════════════════════════════════════
 async function eliminarProducto(p){
   if(!confirm(`¿Eliminar "${p.nombre}" del catálogo?`)) return;
-  const idx = productos.indexOf(p);
-  if(idx > -1) productos.splice(idx, 1);
-  buildAllCarousels();
-  mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
+  mostrarToast('Eliminando…');
+  try {
+    // Eliminar de la colección de documentos individuales en Firestore
+    await PRODS_REF.doc(p.id).delete();
+
+    // Eliminar del array local en memoria para actualizar la interfaz inmediatamente
+    const idx = productos.findIndex(prod => prod.id === p.id);
+    if(idx > -1) productos.splice(idx, 1);
+
+    buildAllCarousels();
     mostrarToast('Producto eliminado ✓');
+  } catch(err) {
+    console.error('Error al eliminar de Firestore:', err);
+    mostrarToastError('No se pudo eliminar el producto de la base de datos.');
   }
-  
 }
 
 // ════════════════════════════════════════════════════════
@@ -865,42 +872,93 @@ async function guardarProducto(){
   const precio = precioInput ? '$' + Number(precioInput.replace(/\D/g, '')).toLocaleString('es-AR') : '';
   const desc   = document.getElementById('a-desc').value.trim();
 
-  // Categorías seleccionadas (checkboxes múltiples)
+  // Capturar categorías
   const tiposSeleccionados = Array.from(
     document.querySelectorAll('#a-tipos-checks input[type=checkbox]:checked')
   ).map(cb => cb.value);
 
-  // Nueva categoría escrita a mano
   const nuevaCatInput = document.getElementById('a-tipo-nueva').value.trim();
   if(nuevaCatInput) tiposSeleccionados.push(nuevaCatInput);
 
+  // Validaciones
   if(!nombre)    { alert('Por favor ingresá el nombre del producto.'); return; }
   if(!tiposSeleccionados.length){ alert('Por favor seleccioná al menos una categoría.'); return; }
   if(!desc)      { alert('Por favor escribí una descripción.'); return; }
   if(!fotosBase64.length){ alert('Por favor subí al menos una foto del producto.'); return; }
 
+  // Acomodar la foto de portada y el resto en Base64
   const reordenadas = [fotosBase64[portadaIdx], ...fotosBase64.filter((_,i)=>i!==portadaIdx)];
   const imgPortada = reordenadas[0];
 
-  if(productoEditando){
-    productoEditando.nombre = nombre;
-    productoEditando.tipos  = tiposSeleccionados;
-    productoEditando.tipo   = tiposSeleccionados[0]; // compatibilidad legacy
-    productoEditando.desc   = desc;
-    productoEditando.precio = precio;
-    productoEditando.img    = imgPortada;
-    productoEditando.imgs   = reordenadas;
-  } else {
-    productos.push({
-      nombre,
-      precio,
-      tipo: tiposSeleccionados[0],
-      tipos: tiposSeleccionados,
-      desc,
-      img: imgPortada,
-      imgs: reordenadas
-    });
+  mostrarToast('Guardando producto en Firebase...');
+
+  try {
+    if(productoEditando){
+      // 1. Actualizar el documento individual existente en Firestore
+      await PRODS_REF.doc(productoEditando.id).update({
+        nombre,
+        precio,
+        tipo: tiposSeleccionados[0],
+        tipos: tiposSeleccionados,
+        desc,
+        img: imgPortada,
+        imgs: reordenadas
+      });
+
+      // 2. Actualizar la memoria visual de la página
+      productoEditando.nombre = nombre;
+      productoEditando.precio = precio;
+      productoEditando.tipo   = tiposSeleccionados[0];
+      productoEditando.tipos  = tiposSeleccionados;
+      productoEditando.desc   = desc;
+      productoEditando.img    = imgPortada;
+      productoEditando.imgs   = reordenadas;
+
+    } else {
+      // 1. Crear un documento individual nuevo en Firestore
+      const nuevoDocRef = await PRODS_REF.add({
+        nombre,
+        precio,
+        tipo: tiposSeleccionados[0],
+        tipos: tiposSeleccionados,
+        desc,
+        img: imgPortada,
+        imgs: reordenadas
+      });
+
+      // 2. Agregar a la memoria visual de la página con su nuevo ID
+      productos.push({
+        id: nuevoDocRef.id,
+        nombre,
+        precio,
+        tipo: tiposSeleccionados[0],
+        tipos: tiposSeleccionados,
+        desc,
+        img: imgPortada,
+        imgs: reordenadas
+      });
+    }
+
+    buildAllCarousels();
+    document.getElementById('admin-modal').classList.remove('active');
+    mostrarToast('Producto guardado ✓');
+    setTimeout(() => scrollToSection('productos'), 300);
+
+    // Guardar las configuraciones (ocultos, orden) por si cambió algo
+    await guardarEnFirebase();
+
+  } catch (err) {
+    console.error("Error crítico al guardar producto en Firestore:", err);
+    mostrarToastError("⚠ Error al guardar. Revisá tu conexión o que la imagen no sea demasiado pesada para Firestore.");
   }
+
+  // Limpiar el formulario
+  productoEditando = null;
+  fotosBase64 = [];
+  portadaIdx = 0;
+  renderFotosGrid();
+  document.querySelector('.admin-modal h2').textContent = 'Nuevo producto';
+}
 
   buildAllCarousels();
   document.getElementById('admin-modal').classList.remove('active');
