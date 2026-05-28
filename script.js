@@ -3,7 +3,10 @@
 // ════════════════════════════════════════════════════════
 firebase.initializeApp(SITE_CONFIG.firebase);
 const db = firebase.firestore();
-const DOC_REF = db.collection('catalogo').doc('productos');
+// Cada producto es un documento en la subcolección "productos"
+// La metadata (categorías, orden, etc.) va en un doc separado "__meta__"
+const PRODS_COL = db.collection('catalogo').doc('productos').collection('items');
+const META_REF  = db.collection('catalogo').doc('__meta__');
 const auth = firebase.auth();
 
 
@@ -180,46 +183,93 @@ function applyColores(c) {
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
 async function cargarDesdeFirebase(){
-  const snap = await DOC_REF.get({ source: 'server' });
-  if(snap.exists){
-    const data = snap.data();
-    if(data.lista){
-
-      categoriasOcultas = Array.isArray(data.categoriasOcultas)
-        ? data.categoriasOcultas
-        : [];
-
-      categoriaOrden = Array.isArray(data.categoriaOrden)
-        ? data.categoriaOrden
-        : [];
-
-      ordenCategorias = data.ordenCategorias || {};
-
-      productosOcultos = Array.isArray(data.productosOcultos)
-        ? data.productosOcultos
-        : [];
-
-      return data.lista;
+  // ── Cargar metadata (categorías ocultas, orden, etc.) ──
+  try {
+    const metaSnap = await META_REF.get({ source: 'server' });
+    if(metaSnap.exists){
+      const m = metaSnap.data();
+      categoriasOcultas = Array.isArray(m.categoriasOcultas) ? m.categoriasOcultas : [];
+      categoriaOrden    = Array.isArray(m.categoriaOrden)    ? m.categoriaOrden    : [];
+      ordenCategorias   = m.ordenCategorias || {};
+      productosOcultos  = Array.isArray(m.productosOcultos)  ? m.productosOcultos  : [];
+    } else {
+      await META_REF.set({ categoriasOcultas: [], categoriaOrden: [], ordenCategorias: {}, productosOcultos: [] });
     }
+  } catch(err) {
+    console.warn('No se pudo cargar metadata:', err);
   }
-  await DOC_REF.set({ lista: [], categoriasOcultas: [] });
-  return [];
+
+  // ── Cargar productos (un documento por producto) ──
+  const prodsSnap = await PRODS_COL.get({ source: 'server' });
+  if(prodsSnap.empty) return [];
+  return prodsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
 }
 
+// Guarda SOLO la metadata (categorías, orden, visibilidad)
+async function guardarMetaEnFirebase(){
+  await META_REF.set({
+    categoriasOcultas,
+    categoriaOrden,
+    ordenCategorias,
+    productosOcultos
+  });
+}
+
+// Guarda/actualiza UN producto en su propio documento
+async function guardarProductoEnFirebase(prod){
+  const docRef = prod.id
+    ? PRODS_COL.doc(prod.id)
+    : PRODS_COL.doc();                // nuevo ID automático
+  if(!prod.id) prod.id = docRef.id;   // guardar el ID en el objeto
+  await docRef.set(prod);
+  return prod;
+}
+
+// Elimina UN producto de Firestore
+async function eliminarProductoEnFirebase(prodId){
+  await PRODS_COL.doc(prodId).delete();
+}
+
+// Guarda TODO (batch): útil para restaurar o migrar desde formato legacy
 async function guardarEnFirebase(){
   try {
-    await DOC_REF.set({
-      lista: productos,
+    const batch = db.batch();
+
+    // 1. Metadata
+    batch.set(META_REF, {
       categoriasOcultas,
       categoriaOrden,
       ordenCategorias,
       productosOcultos
     });
-    return true; // Indicamos éxito
+
+    // 2. Obtener IDs actuales en Firestore para detectar eliminados
+    const existentes = await PRODS_COL.get({ source: 'server' });
+    const idsEnFirestore = new Set(existentes.docs.map(d => d.id));
+    const idsActuales    = new Set(productos.map(p => p.id).filter(Boolean));
+
+    // Eliminar los que ya no están en memoria
+    existentes.docs.forEach(doc => {
+      if(!idsActuales.has(doc.id)) batch.delete(doc.ref);
+    });
+
+    // Crear o actualizar cada producto
+    productos.forEach(p => {
+      if(!p.id){
+        const ref = PRODS_COL.doc();
+        p.id = ref.id;
+        batch.set(ref, p);
+      } else {
+        batch.set(PRODS_COL.doc(p.id), p);
+      }
+    });
+
+    await batch.commit();
+    return true;
   } catch(err) {
     console.error('Error guardando en Firebase:', err);
     mostrarToastError('⚠ Error al guardar. Mala conexión, límite excedido de imágenes o superposicion de pestañas.<br>Revise conexión a internet, cierre las demás pestañas y vuelva a iniciar sesión en modo administrador.', 20000);
-    return false; // Indicamos fallo
+    return false;
   }
 }
 
@@ -676,11 +726,14 @@ async function eliminarProducto(p){
   if(idx > -1) productos.splice(idx, 1);
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
+  try {
+    if(p.id) await eliminarProductoEnFirebase(p.id);
+    await guardarMetaEnFirebase();
     mostrarToast('Producto eliminado ✓');
+  } catch(err) {
+    console.error('Error eliminando producto:', err);
+    mostrarToastError('⚠ Error al eliminar. Revisá la conexión.', 5000);
   }
-  
 }
 
 // ════════════════════════════════════════════════════════
@@ -718,9 +771,12 @@ async function toggleVisibilidadProducto(p, card, btn){
   }
 
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito){
+  try {
+    await guardarMetaEnFirebase();
     mostrarToast(ahoraOculto ? 'Producto ocultado ✓' : 'Producto visible ✓');
+  } catch(err) {
+    console.error('Error guardando visibilidad:', err);
+    mostrarToastError('⚠ Error al guardar. Revisá la conexión.', 5000);
   }
 }
 
@@ -905,10 +961,16 @@ async function guardarProducto(){
   buildAllCarousels();
   document.getElementById('admin-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
+  try {
+    // Guardar solo el producto que cambió (no toda la lista)
+    const prodTarget = productoEditando || productos[productos.length - 1];
+    await guardarProductoEnFirebase(prodTarget);
+    await guardarMetaEnFirebase();
     mostrarToast('Producto guardado ✓');
     setTimeout(() => scrollToSection('productos'), 300);
+  } catch(err) {
+    console.error('Error guardando producto:', err);
+    mostrarToastError('⚠ Error al guardar. Mala conexión, límite excedido de imágenes o superposicion de pestañas.<br>Revise conexión a internet, cierre las demás pestañas y vuelva a iniciar sesión en modo administrador.', 20000);
   }
   productoEditando = null;
   fotosBase64 = [];
@@ -1049,10 +1111,12 @@ async function guardarReorden(){
     .classList.remove('active');
 
   mostrarToast('Guardando orden…');
-
-  const exito = await guardarEnFirebase();
-  if(exito) {
+  try {
+    await guardarMetaEnFirebase();
     mostrarToast('Orden guardado ✓');
+  } catch(err) {
+    console.error('Error guardando orden:', err);
+    mostrarToastError('⚠ Error al guardar. Revisá la conexión.', 5000);
   }
 }
 
@@ -1141,9 +1205,12 @@ async function guardarCategorias(){
   buildAllCarousels();
   document.getElementById('cat-modal').classList.remove('active');
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
+  try {
+    await guardarMetaEnFirebase();
     mostrarToast('Categorías actualizadas ✓');
+  } catch(err) {
+    console.error('Error guardando categorías:', err);
+    mostrarToastError('⚠ Error al guardar. Revisá la conexión.', 5000);
   }
 }
 
@@ -1167,9 +1234,13 @@ async function eliminarCategoria(cat){
   renderCatToggles();
   buildAllCarousels();
   mostrarToast('Guardando…');
-  const exito = await guardarEnFirebase();
-  if(exito) {
-    mostrarToast('Categoría "${cat}" eliminada ✓');
+  try {
+    // Usa batch completo porque hay productos eliminados
+    const exito = await guardarEnFirebase();
+    if(exito) mostrarToast(`Categoría eliminada ✓`);
+  } catch(err) {
+    console.error('Error eliminando categoría:', err);
+    mostrarToastError('⚠ Error al eliminar. Revisá la conexión.', 5000);
   }
 }
 
