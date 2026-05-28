@@ -284,6 +284,11 @@ function pedirLoginAdmin(){
   });
 }
 
+function mostrarAyudaContrasena(e){
+  e.preventDefault();
+  alert('Para restablecer tu contraseña, contactate con el servicio técnico de LUCANSOFT.');
+}
+
 function cancelarLogin(){
   document.getElementById('login-modal').classList.remove('active');
   document.getElementById('login-error').textContent = '';
