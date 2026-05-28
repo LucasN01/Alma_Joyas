@@ -83,10 +83,33 @@ const SITE_CONFIG = {
   },
 
   // ── TIPOGRAFÍA (Google Fonts) ───────────────────────────────────
-  // Si cambiás las fuentes, script.js actualiza el link de Google Fonts automáticamente
   // Usá exactamente el nombre como aparece en fonts.google.com
-  fontSerif: "Cormorant Garamond",  // Fuente elegante para títulos
-  fontSans:  "Jost",                // Fuente moderna para cuerpo de texto
+  // script.js carga todas las fuentes únicas automáticamente y aplica
+  // las variables CSS --font-* en todo el sitio. Solo editá este bloque.
+  tipografia: {
+    // Cuerpo de texto (párrafos, botones, inputs, etiquetas, nav links)
+    cuerpo:          "Inter",
+
+    // Logo en el nav (marca del negocio)
+    nav:             "Cormorant Garamond",
+
+    // Título grande en el hero (nombre de la marca)
+    tituloPagina:    "Pinyon Script",
+
+    // Títulos de secciones (Nosotros, Contacto, etc.)
+    tituloSeccion:   "Cormorant Garamond",
+
+    // Nombre del producto en cards y modales
+    tituloProducto:  "Cormorant Garamond",
+
+    // Títulos en paneles y modales del admin
+    tituloAdmin:     "Cormorant Garamond",
+  },
+
+  // ── LEGACY (no tocar — usados internamente por script.js) ──────
+  // Se derivan automáticamente de tipografia arriba
+  get fontSerif(){ return this.tipografia.tituloPagina },
+  get fontSans() { return this.tipografia.cuerpo },
 
   // ── PALETA DE COLORES ──────────────────────────────────────────
   // Usá coolors.co o palettte.app para generar paletas para cada cliente

@@ -50,14 +50,36 @@ function applyConfig() {
   // Título del browser
   document.title = `${C.marcaPrincipal} ${C.marcaItalica}`;
 
-  // Fuentes — actualiza el link de Google Fonts dinámicamente
+  // Fuentes — lee tipografia de config.js, inyecta variables CSS y carga Google Fonts
+  const T = C.tipografia || {};
+
+  // Mapa de variable CSS → clave en tipografia
+  const fontVars = {
+    '--font-cuerpo':          T.cuerpo          || 'Jost',
+    '--font-nav':             T.nav             || T.cuerpo || 'Jost',
+    '--font-titulo-pagina':   T.tituloPagina    || 'Pinyon Script',
+    '--font-titulo-seccion':  T.tituloSeccion   || T.tituloPagina || 'Pinyon Script',
+    '--font-titulo-producto': T.tituloProducto  || T.tituloPagina || 'Pinyon Script',
+    '--font-titulo-admin':    T.tituloAdmin     || T.tituloPagina || 'Pinyon Script',
+  };
+
+  // Inyectar variables en :root
+  const root = document.documentElement;
+  Object.entries(fontVars).forEach(([varName, fontName]) => {
+    root.style.setProperty(varName, `'${fontName}'`);
+  });
+
+  // Actualizar Google Fonts con todas las fuentes únicas
   const gfonts = document.getElementById('gfonts');
   if (gfonts) {
-    const serif = C.fontSerif.replace(/ /g, '+');
-    const sans  = C.fontSans.replace(/ /g, '+');
-    gfonts.href = `https://fonts.googleapis.com/css2?family=${serif}:ital,wght@0,300;0,400;0,600;1,300;1,400&family=${sans}:wght@300;400;500&display=swap`;
+    const uniqueFonts = [...new Set(Object.values(fontVars))];
+    const families = uniqueFonts
+      .map(f => `family=${f.replace(/ /g, '+')}:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400`)
+      .join('&');
+    gfonts.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
   }
-  document.body.style.fontFamily = `'${C.fontSans}', sans-serif`;
+
+  document.body.style.fontFamily = `'${T.cuerpo || 'Jost'}', sans-serif`;
 
   // Colores CSS (sobreescribe el :root del CSS)
   applyColores(C.colores);
