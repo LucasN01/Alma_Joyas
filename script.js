@@ -33,6 +33,7 @@ let carruselProds = {};     // { catId: [productos del carrusel] }
 let categoriasOcultas = []; // nombres de categorías ocultas
 let categoriaOrden = [];    // orden personalizado de categorías
 let ordenCategorias = {};
+let productosOcultos = [];  // IDs de productos ocultos individualmente
 
 const params = new URLSearchParams(location.search);
 const ADMIN_REQUEST = params.has('admin');
@@ -194,6 +195,10 @@ async function cargarDesdeFirebase(){
 
       ordenCategorias = data.ordenCategorias || {};
 
+      productosOcultos = Array.isArray(data.productosOcultos)
+        ? data.productosOcultos
+        : [];
+
       return data.lista;
     }
   }
@@ -207,7 +212,8 @@ async function guardarEnFirebase(){
       lista: productos,
       categoriasOcultas,
       categoriaOrden,
-      ordenCategorias
+      ordenCategorias,
+      productosOcultos
     });
     return true; // Indicamos éxito
   } catch(err) {
@@ -483,14 +489,19 @@ function buildTrack(catId, prods){
   const track = document.getElementById('carrusel-track-' + catId);
   if(!track || !prods.length) return;
 
+  // En modo visitante, ocultar los productos marcados como no visibles
+  const prodsVisibles = ADMIN_MODE
+    ? prods
+    : prods.filter(p => !productosOcultos.includes(p.id));
+
   const visible = visiblePorPantalla();
   const cardW   = getCardWidth();
 
-  carruselProds[catId] = prods;
+  carruselProds[catId] = prodsVisibles;
   posCarrusel[catId]   = 0;
   track.innerHTML      = '';
 
-  prods.forEach(p => {
+  prodsVisibles.forEach(p => {
     const card = crearCard(p, false);
     card.style.flex = `0 0 ${cardW}px`;
     track.appendChild(card);
@@ -498,14 +509,15 @@ function buildTrack(catId, prods){
 
   const btnPrev = document.getElementById('btn-prev-' + catId);
   const btnNext = document.getElementById('btn-next-' + catId);
-  const ocultar = prods.length <= visible;
+  const ocultar = prodsVisibles.length <= visible;
   if(btnPrev) btnPrev.style.display = ocultar ? 'none' : '';
   if(btnNext) btnNext.style.display = ocultar ? 'none' : '';
 }
 
 function crearCard(p, esClonado){
   const card = document.createElement('div');
-  card.className = 'producto-card';
+  const estaOculto = productosOcultos.includes(p.id);
+  card.className = 'producto-card' + (estaOculto ? ' producto-oculto' : '');
   card.innerHTML = `
     <div class="prod-img-placeholder">
       <img src="${p.img}" alt="${p.nombre}">
@@ -534,6 +546,22 @@ function crearCard(p, esClonado){
     btnEdit.style.right = '50px';
     btnEdit.addEventListener('click', e => { e.stopPropagation(); abrirModalEditar(p); });
     card.appendChild(btnEdit);
+
+    const btnVis = document.createElement('button');
+    btnVis.className = 'admin-visibility-btn' + (estaOculto ? ' is-hidden' : '');
+    btnVis.title = estaOculto ? 'Producto oculto — clic para mostrar' : 'Ocultar producto';
+    btnVis.innerHTML = estaOculto
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    btnVis.addEventListener('click', e => { e.stopPropagation(); toggleVisibilidadProducto(p, card, btnVis); });
+    card.appendChild(btnVis);
+
+    if(estaOculto){
+      const badge = document.createElement('div');
+      badge.className = 'oculto-badge';
+      badge.textContent = 'No visible';
+      card.appendChild(badge);
+    }
   }
 
   card.addEventListener('click', () => openModal(p));
@@ -656,8 +684,47 @@ async function eliminarProducto(p){
 }
 
 // ════════════════════════════════════════════════════════
-//  ADMIN — Agregar / Editar
+//  ADMIN — Visibilidad individual de producto
 // ════════════════════════════════════════════════════════
+async function toggleVisibilidadProducto(p, card, btn){
+  const estaOculto = productosOcultos.includes(p.id);
+
+  if(estaOculto){
+    // Mostrar → quitar del array
+    productosOcultos = productosOcultos.filter(id => id !== p.id);
+  } else {
+    // Ocultar → agregar al array
+    productosOcultos.push(p.id);
+  }
+
+  // Actualizar visual de la card sin reconstruir todo
+  const ahoraOculto = !estaOculto;
+  card.classList.toggle('producto-oculto', ahoraOculto);
+  btn.classList.toggle('is-hidden', ahoraOculto);
+  btn.title = ahoraOculto ? 'Producto oculto — clic para mostrar' : 'Ocultar producto';
+  btn.innerHTML = ahoraOculto
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+  // Actualizar o quitar el badge "No visible"
+  const badgeExistente = card.querySelector('.oculto-badge');
+  if(ahoraOculto && !badgeExistente){
+    const badge = document.createElement('div');
+    badge.className = 'oculto-badge';
+    badge.textContent = 'No visible';
+    card.appendChild(badge);
+  } else if(!ahoraOculto && badgeExistente){
+    badgeExistente.remove();
+  }
+
+  mostrarToast('Guardando…');
+  const exito = await guardarEnFirebase();
+  if(exito){
+    mostrarToast(ahoraOculto ? 'Producto ocultado ✓' : 'Producto visible ✓');
+  }
+}
+
+
 let fotosBase64 = [];      // array de todas las fotos
 let portadaIdx = 0;        // índice de la foto de portada
 let productoEditando = null;
@@ -872,6 +939,7 @@ async function resetearProductos(){
   if(!confirm('¿Restaurar el catálogo original? Se perderán todos los cambios.')) return;
   productos = productosDefault.map(p => ({...p}));
   categoriasOcultas = [];
+  productosOcultos = [];
   buildAllCarousels();
   mostrarToast('Guardando…');
   const exito = await guardarEnFirebase();

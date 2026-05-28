@@ -307,6 +307,84 @@
   transform:scale(1.1);
 }
 
+/* Botón visibilidad individual de producto */
+.admin-visibility-btn{
+  position:absolute;
+  top:10px;
+  right:92px;
+  z-index:20;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:var(--text);
+  border:1px solid var(--detalles);
+  color:var(--white);
+  font-size:14px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all .2s;
+  padding:0;
+}
+.admin-visibility-btn svg{
+  width:15px;
+  height:15px;
+  flex-shrink:0;
+}
+.admin-visibility-btn:hover{
+  background:var(--principal);
+  transform:scale(1.1);
+}
+.admin-visibility-btn.is-hidden{
+  background:#b45309;
+  border-color:#b45309;
+}
+.admin-visibility-btn.is-hidden:hover{
+  background:#92400e;
+  border-color:#92400e;
+}
+
+/* Card con producto oculto (solo visible en modo admin) */
+.admin .producto-card.producto-oculto .prod-img-placeholder img{
+  filter: grayscale(60%) brightness(0.55);
+}
+.admin .producto-card.producto-oculto::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(0,0,0,0.18) 8px,
+    rgba(0,0,0,0.18) 9px
+  );
+  pointer-events:none;
+  z-index:5;
+  border-radius:4px;
+}
+
+/* Badge "No visible" sobre la card */
+.oculto-badge{
+  position:absolute;
+  bottom:10px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:10;
+  background:rgba(180,83,9,0.92);
+  color:#fff;
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  padding:4px 10px;
+  border-radius:20px;
+  white-space:nowrap;
+  pointer-events:none;
+}
+
+
 .admin-bar button{
   padding:8px 12px;
   border:none;
