@@ -67,6 +67,8 @@ const SITE_CONFIG = {
   tipoProducto:        "Joyas",               // Ej: "joya", "prenda", "producto"
   tipoProductoEjemplo: "Anillo", // Ej: "Anillo de plata", "Vestido talle M"
 
+  paginacionBatch: 6, // productos por batch por carrusel
+
   // ── CATEGORÍAS PREDEFINIDAS (panel admin) ──────────────────────
   // Las que aparecen en el dropdown al cargar el panel por primera vez
   categoriasFijas: [],

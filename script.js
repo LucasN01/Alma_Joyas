@@ -33,6 +33,12 @@ const productosDefault = SITE_CONFIG.productosDefault;
 let productos = [];
 let posCarrusel = {};       // { catId: posicion }
 let carruselProds = {};     // { catId: [productos del carrusel] }
+
+// ── PAGINACIÓN por carrusel ────────────────────────────────────
+// catKey = nombre de categoría (o 'todos')
+const paginacion = {};
+// paginacion[catKey] = { lastDoc, agotado, cargando }
+
 let categoriasOcultas = []; // nombres de categorías ocultas
 let categoriaOrden = [];    // orden personalizado de categorías
 let ordenCategorias = {};
@@ -182,8 +188,9 @@ function applyColores(c) {
 // ════════════════════════════════════════════════════════
 //  FIREBASE: cargar y guardar
 // ════════════════════════════════════════════════════════
+// Carga metadata + primer batch de cada categoría conocida
 async function cargarDesdeFirebase(){
-  // ── Cargar metadata (categorías ocultas, orden, etc.) ──
+  // 1. Metadata (1 lectura)
   try {
     const metaSnap = await META_REF.get({ source: 'server' });
     if(metaSnap.exists){
@@ -192,26 +199,101 @@ async function cargarDesdeFirebase(){
       categoriaOrden    = Array.isArray(m.categoriaOrden)    ? m.categoriaOrden    : [];
       ordenCategorias   = m.ordenCategorias || {};
       productosOcultos  = Array.isArray(m.productosOcultos)  ? m.productosOcultos  : [];
+      // Categorías conocidas vienen del meta para no necesitar un query extra
+      if(Array.isArray(m.categorias) && m.categorias.length){
+        // Cargar primer batch por cada categoría en paralelo
+        const batches = await Promise.all(
+          m.categorias.map(cat => cargarBatchCategoria(cat))
+        );
+        batches.forEach((prods, i) => {
+          prods.forEach(p => {
+            if(!productos.find(x => x.id === p.id)) productos.push(p);
+          });
+        });
+        return productos;
+      }
     } else {
-      await META_REF.set({ categoriasOcultas: [], categoriaOrden: [], ordenCategorias: {}, productosOcultos: [] });
+      await META_REF.set({ categoriasOcultas: [], categoriaOrden: [], ordenCategorias: {}, productosOcultos: [], categorias: [] });
     }
   } catch(err) {
     console.warn('No se pudo cargar metadata:', err);
   }
 
-  // ── Cargar productos (un documento por producto) ──
+  // Fallback: si no hay categorías en meta, carga todo (primera vez o base vieja)
   const prodsSnap = await PRODS_COL.get({ source: 'server' });
   if(prodsSnap.empty) return [];
   return prodsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
 }
 
+// Carga un batch de N productos para UNA categoría
+async function cargarBatchCategoria(cat, lastDoc = null){
+  const BATCH = (SITE_CONFIG.paginacionBatch || 6);
+  let q = PRODS_COL
+    .where('tipos', 'array-contains', cat)
+    .orderBy('nombre')
+    .limit(BATCH);
+  if(lastDoc) q = q.startAfter(lastDoc);
+
+  const snap = await q.get({ source: 'server' });
+  const docs  = snap.docs;
+  const prods = docs.map(d => ({ ...d.data(), id: d.id }));
+
+  // Guardar cursor para siguiente batch
+  if(!paginacion[cat]) paginacion[cat] = {};
+  paginacion[cat].lastDoc  = docs.length ? docs[docs.length - 1] : paginacion[cat].lastDoc;
+  paginacion[cat].agotado  = docs.length < BATCH;
+  paginacion[cat].cargando = false;
+
+  return prods;
+}
+
+// Carga el siguiente batch para una categoría y agrega al carrusel
+async function cargarMasEnCategoria(cat){
+  const estado = paginacion[cat];
+  if(!estado || estado.agotado || estado.cargando) return;
+
+  estado.cargando = true;
+  const nuevos = await cargarBatchCategoria(cat, estado.lastDoc);
+
+  if(!nuevos.length){ estado.agotado = true; return; }
+
+  // Agregar a la lista global sin duplicados
+  nuevos.forEach(p => {
+    if(!productos.find(x => x.id === p.id)) productos.push(p);
+  });
+
+  // Agregar las cards nuevas directamente al track (sin reconstruir todo)
+  const catId  = getCatId(cat);
+  const track  = document.getElementById('carrusel-track-' + catId);
+  if(!track) return;
+  const cardW = getCardWidth();
+  nuevos.forEach(p => {
+    if(productosOcultos.includes(p.id) && !ADMIN_MODE) return;
+    const card = crearCard(p, false);
+    card.style.flex = `0 0 ${cardW}px`;
+    track.appendChild(card);
+    carruselProds[catId].push(p);
+  });
+
+  // Actualizar botones (podrían haberse ocultado si solo había 1 pantalla)
+  const visible = visiblePorPantalla();
+  const total   = carruselProds[catId].length;
+  const btnPrev = document.getElementById('btn-prev-' + catId);
+  const btnNext = document.getElementById('btn-next-' + catId);
+  if(btnPrev) btnPrev.style.display = total <= visible ? 'none' : '';
+  if(btnNext) btnNext.style.display = total <= visible ? 'none' : '';
+}
+
 // Guarda SOLO la metadata (categorías, orden, visibilidad)
 async function guardarMetaEnFirebase(){
+  // Recalcular lista de categorías conocidas para el loader paginado
+  const cats = getCategorias();
   await META_REF.set({
     categoriasOcultas,
     categoriaOrden,
     ordenCategorias,
-    productosOcultos
+    productosOcultos,
+    categorias: cats
   });
 }
 
@@ -428,84 +510,73 @@ function buildAllCarousels(){
       return lista.includes(cat);
     });
 
-    // ORDEN PERSONALIZADO DE ESA CATEGORÍA
     const orden = ordenCategorias[cat];
-
     if(orden){
-
       prods.sort((a,b) => {
-
         const ia = orden.indexOf(a.id);
         const ib = orden.indexOf(b.id);
-
-        // productos nuevos quedan al final
         if(ia === -1) return 1;
         if(ib === -1) return -1;
-
         return ia - ib;
       });
-
     }
 
     if(!prods.length) return;
 
     const catId = getCatId(cat);
-
     const section = crearSeccionCarrusel(cat, catId, idx > 0);
-
     container.appendChild(section);
 
-    toInit.push({ catId, prods: [...prods] });
-
+    // ← catNombre agregado
+    toInit.push({ catId, catNombre: cat, prods: [...prods] });
   });
 
   // "Todos los productos" al final
   if(productos.length > 0){
-
-    const section = crearSeccionCarrusel(
-      'Todos los productos',
-      'todos',
-      visibles.length > 0
-    );
-
+    const section = crearSeccionCarrusel('Todos los productos', 'todos', visibles.length > 0);
     container.appendChild(section);
 
-    toInit.push({
-      catId: 'todos',
-      prods: [...productos]
-    });
+    // ← catNombre: 'todos' (no pagina contra Firestore)
+    toInit.push({ catId: 'todos', catNombre: 'todos', prods: [...productos] });
   }
 
-  // Construir tracks
-  toInit.forEach(({ catId, prods }) => {
+  // Construir tracks + eventos
+  toInit.forEach(({ catId, catNombre, prods }) => {
 
     buildTrack(catId, prods);
 
-    const track = document.getElementById(
-      'carrusel-track-' + catId
-    );
-
+    const track = document.getElementById('carrusel-track-' + catId);
     if(!track) return;
 
+    // ── Touch (mobile) ──────────────────────────────────────────
     let startX = 0;
-
     track.addEventListener('touchstart', e => {
       startX = e.touches[0].clientX;
-    }, {passive:true});
+    }, { passive: true });
 
     track.addEventListener('touchend', e => {
-
-      const diff =
-        startX - e.changedTouches[0].clientX;
-
-      if(Math.abs(diff) > 40){
-        moverCarrusel(catId, diff > 0 ? 1 : -1);
-      }
-
+      const diff = startX - e.changedTouches[0].clientX;
+      if(Math.abs(diff) > 40) moverCarrusel(catId, diff > 0 ? 1 : -1);
     });
 
-  });
+    // ── Lazy load al scroll horizontal ─────────────────────────
+    // Solo para categorías reales (no "todos", que ya está en memoria)
+    if(catNombre === 'todos') return;
 
+    const outer = track.closest('.carrusel-track-outer');
+    if(!outer) return;
+
+    outer.addEventListener('scroll', () => {
+      const total   = carruselProds[catId]?.length || 0;
+      const pos     = posCarrusel[catId] || 0;
+      const visible = visiblePorPantalla();
+      // Dispara cuando quedan ≤2 cards para llegar al final
+      if(total - pos - visible <= 2){
+        cargarMasEnCategoria(catNombre);
+      }
+    }, { passive: true });
+
+  });
 }
 
 function crearSeccionCarrusel(cat, catId, showDivider){
