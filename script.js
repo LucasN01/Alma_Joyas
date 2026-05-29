@@ -1380,6 +1380,7 @@ function abrirModalEditarPagina(){
   document.getElementById('ep-nos-p1').value = (ps[0]||'').replace(/<[^>]+>/g,'');
   document.getElementById('ep-nos-p2').value = (ps[1]||'').replace(/<[^>]+>/g,'');
   document.getElementById('ep-nos-p3').value = (ps[2]||'').replace(/<[^>]+>/g,'');
+  document.getElementById('edit-nosotros-slogan').value = C.nosotros.slogan;
   const stats = C.nosotros.stats || [{num:'',label:''},{num:'',label:''}];
   document.getElementById('ep-stat1-num').value   = (stats[0]||{}).num   || '';
   document.getElementById('ep-stat1-label').value = (stats[0]||{}).label || '';
@@ -1442,6 +1443,7 @@ async function guardarEditarPagina(){
     document.getElementById('ep-nos-p2').value.trim(),
     document.getElementById('ep-nos-p3').value.trim()
   ].filter(p => p !== '');
+  C.nosotros.slogan = document.getElementById('edit-nosotros-slogan').value.trim();
   C.nosotros.stats = [
     { num: document.getElementById('ep-stat1-num').value.trim(), label: document.getElementById('ep-stat1-label').value.trim() },
     { num: document.getElementById('ep-stat2-num').value.trim(), label: document.getElementById('ep-stat2-label').value.trim() }
