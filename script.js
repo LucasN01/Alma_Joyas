@@ -112,6 +112,7 @@ function applyConfig() {
   // ── NOSOTROS ─────────────────────────────────────────
   document.getElementById('nosotros-label').textContent = C.nosotros.label;
   document.getElementById('nosotros-titulo').textContent = C.nosotros.titulo;
+  document.getElementById('nosotros-slogan').textContent = config.nosotros.slogan;
   document.getElementById('nosotros-parrafos').innerHTML =
     C.nosotros.parrafos.map(p => `<p>${p}</p>`).join('');
   document.getElementById('nosotros-stats').innerHTML =
