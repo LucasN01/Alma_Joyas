@@ -21,6 +21,7 @@ const SITE_CONFIG = {
   nosotros: {
     label:  "Nuestra esencia",
     titulo: "Cada detalle define tu estilo",
+    slogan: "Amor en cada detalle",
     parrafos: [
       "En <strong>Alma Joyas</strong> nos apasiona ofrecer piezas únicas que realzan tu identidad. Nuestra colección de indumentaria y bijouterie está pensada para acompañarte en cada momento, con diseños actuales y versátiles.",
       "Nacimos con la idea de acercar moda accesible sin perder calidad ni estilo, brindando opciones que se adapten a distintas personalidades y tendencias.",
